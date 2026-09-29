@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>CastDecoySetup</RootNamespace>
+    <AssemblyName>CastDecoy-Setup</AssemblyName>
+    <ApplicationIcon>..\..\Assets\icon.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <Resource Include="..\..\Assets\icon.ico" Link="Assets\icon.ico" />
+    <Resource Include="..\..\Assets\brand.png" Link="Assets\brand.png" />
+    <EmbeddedResource Include="..\..\dist\CastDecoy-v1.0.0-win-x64.zip">
+      <LogicalName>CastDecoyPackage.zip</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+</Project>

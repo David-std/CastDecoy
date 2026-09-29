@@ -1,0 +1,45 @@
+## Build results
+[Bb]in/
+[Oo]bj/
+[Dd]ist/
+[Ll]og/
+[Ll]ogs/
+
+## Visual Studio
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+*.userprefs
+
+## Visual Studio Code & IDEs
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.bak
+*~
+
+## Windows & OS artifacts
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+## .NET Core / NuGet
+project.lock.json
+project.fragment.lock.json
+artifacts/
+*.nupkg
+*.snupkg
+
+## Test and diagnostics
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
