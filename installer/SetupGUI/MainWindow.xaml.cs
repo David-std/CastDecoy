@@ -29,7 +29,7 @@ public partial class MainWindow : Window
             AlreadyInstalledBanner.Visibility = Visibility.Visible;
             UninstallBtn.Visibility = Visibility.Visible;
             InstallBtn.Content = "Reinstalar";
-            StatusText.Text = "CastDecoy ya está instalado. Puede reinstalar o desinstalar.";
+            StatusText.Text = "Listo para reinstalar o desinstalar";
         }
         else
         {
