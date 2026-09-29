@@ -460,27 +460,32 @@
             <Setter Property="SnapsToDevicePixels" Value="True"/>
             <Setter Property="OverridesDefaultStyle" Value="True"/>
             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-            <Setter Property="Height" Value="22"/>
+            <Setter Property="IsMoveToPointEnabled" Value="True"/>
+            <Setter Property="Height" Value="24"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Slider">
-                        <Grid VerticalAlignment="Center">
-                            <Border Height="5" Background="#e5e5ea" CornerRadius="2.5"/>
+                        <Grid VerticalAlignment="Center" Height="24" Background="Transparent">
+                            <Border Height="5" Background="#e5e5ea" CornerRadius="2.5" VerticalAlignment="Center"/>
                             <Track x:Name="PART_Track">
                                 <Track.DecreaseRepeatButton>
-                                    <RepeatButton Command="{x:Static Slider.DecreaseLarge}">
+                                    <RepeatButton Command="{x:Static Slider.DecreaseLarge}" Focusable="False">
                                         <RepeatButton.Template>
                                             <ControlTemplate TargetType="RepeatButton">
-                                                <Border Height="5" Background="#5b8df7" CornerRadius="2.5,0,0,2.5"/>
+                                                <Grid Height="24" Background="Transparent">
+                                                    <Border Height="5" Background="#5b8df7" CornerRadius="2.5,0,0,2.5" VerticalAlignment="Center"/>
+                                                </Grid>
                                             </ControlTemplate>
                                         </RepeatButton.Template>
                                     </RepeatButton>
                                 </Track.DecreaseRepeatButton>
                                 <Track.IncreaseRepeatButton>
-                                    <RepeatButton Command="{x:Static Slider.IncreaseLarge}">
+                                    <RepeatButton Command="{x:Static Slider.IncreaseLarge}" Focusable="False">
                                         <RepeatButton.Template>
                                             <ControlTemplate TargetType="RepeatButton">
-                                                <Border Height="5" Background="Transparent"/>
+                                                <Grid Height="24" Background="Transparent">
+                                                    <Border Height="5" Background="Transparent" VerticalAlignment="Center"/>
+                                                </Grid>
                                             </ControlTemplate>
                                         </RepeatButton.Template>
                                     </RepeatButton>

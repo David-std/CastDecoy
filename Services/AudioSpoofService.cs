@@ -217,17 +217,15 @@ public class AudioSpoofService : IDisposable
         int sampleCount = bytesRecorded / 2;
         float maxPeak = 0f;
 
-        // Frame discard rate configuration
         int choppyCycle = _choppyRate == 0 ? 6000 : (_choppyRate == 2 ? 3000 : 4410);
         int choppyMuteDuration = _choppyRate == 0 ? (int)(choppyCycle * 0.25f) : (_choppyRate == 2 ? (int)(choppyCycle * 0.75f) : (int)(choppyCycle * 0.50f));
 
-        // Multiple echo delay samples
         int multipleDelay = _echoMode switch
         {
-            1 => 5292,  // 120 ms
-            2 => 7938,  // 180 ms
-            3 => 11466, // 260 ms
-            _ => 12348  // Default 280 ms
+            1 => 5292,
+            2 => 7938,
+            3 => 11466,
+            _ => 12348
         };
 
         for (int i = 0; i < sampleCount; i++)
@@ -259,9 +257,8 @@ public class AudioSpoofService : IDisposable
                 case AudioSpoofMode.Echo:
                     if (_echoMode == 0)
                     {
-                        // Double long echo: 280ms and 560ms taps
-                        const int tap1Delay = 12348; // 280 ms
-                        const int tap2Delay = 24696; // 560 ms
+                        const int tap1Delay = 12348;
+                        const int tap2Delay = 24696;
                         int idx1 = (_echoIndex - tap1Delay + 44100) % 44100;
                         int idx2 = (_echoIndex - tap2Delay + 44100) % 44100;
                         short tap1 = _echoBuffer[idx1];
@@ -274,7 +271,6 @@ public class AudioSpoofService : IDisposable
                     }
                     else
                     {
-                        // Multiple echo with configurable delay
                         int readIdx = (_echoIndex - multipleDelay + 44100) % 44100;
                         short delayed = _echoBuffer[readIdx];
                         mixed = orig + (int)(delayed * 0.65f);
@@ -286,7 +282,6 @@ public class AudioSpoofService : IDisposable
                 case AudioSpoofMode.StaticNoise:
                     if (_staticType == 0)
                     {
-                        // 50-60 Hz ground hum with harmonics
                         double t = (double)_sampleCountGlobal / 44100.0;
                         double hum55 = Math.Sin(2.0 * Math.PI * 55.0 * t) * 6000.0;
                         double hum110 = Math.Sin(2.0 * Math.PI * 110.0 * t) * 2500.0;
@@ -296,13 +291,11 @@ public class AudioSpoofService : IDisposable
                     }
                     else if (_staticType == 1)
                     {
-                        // Continuous white noise
                         short white = (short)_random.Next(-6500, 6500);
                         mixed = (int)(orig * 0.60f + white);
                     }
                     else
                     {
-                        // Sibilant cable static with intermittent crackles
                         int crackle = _random.NextDouble() < 0.012 ? _random.Next(-18000, 18000) : 0;
                         int hiss = _random.Next(-3500, 3500) + crackle;
                         mixed = (int)(orig * 0.55f + hiss);
@@ -314,7 +307,6 @@ public class AudioSpoofService : IDisposable
                     break;
             }
 
-            // Apply master output volume
             mixed = (int)(mixed * _masterVolume);
             short finalSample = (short)Math.Clamp(mixed, -32768, 32767);
 

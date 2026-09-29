@@ -55,6 +55,8 @@ public partial class MainWindow : Window
             _audioService.SetChoppyRate(ChoppyRateCombo.SelectedIndex);
         if (MicMasterVolumeSlider != null)
             _audioService.SetMasterVolume((float)(MicMasterVolumeSlider.Value / 100.0));
+        if (MicSaturationSlider != null)
+            _audioService.SetSaturationGain((float)MicSaturationSlider.Value);
     }
 
     private void ScanMicDevices()
@@ -254,8 +256,10 @@ public partial class MainWindow : Window
         else if (ModeMicSaturationRadio.IsChecked == true)
         {
             _audioService.SetMode(AudioSpoofMode.Saturation);
+            int satVal = (int)(MicSaturationSlider?.Value ?? 15);
+            _audioService.SetSaturationGain(satVal);
             MicStatusDot.Fill = new SolidColorBrush(MediaColor.FromRgb(0xfb, 0xbc, 0x04));
-            MicStatusNotice.Text = $"Saturación x{(int)MicSaturationSlider.Value} activa";
+            MicStatusNotice.Text = $"Saturación x{satVal} activa";
             TileMicStatusText.Text = "Saturación activa";
             TileMicStatusText.Foreground = new SolidColorBrush(MediaColor.FromRgb(0xfb, 0xbc, 0x04));
             ToggleFakeMuteBtn.Content = "Silencio falso";
@@ -438,7 +442,6 @@ public partial class MainWindow : Window
 
         for (int i = 0; i < 16; i++)
         {
-            // Organic speech flutter and formant distribution
             double jitter = Math.Sin(_spectrumTick * 0.42 + i * 1.35) * 0.12 + Math.Cos(_spectrumTick * 0.28 + i * 0.95) * 0.08;
             double bandEnvelope = Math.Clamp(VocalFrequencies[i] * p + jitter * p, 0.05, 1.0);
             double targetIn = Math.Clamp(bandEnvelope * maxH, 3.0, maxH);
@@ -462,7 +465,6 @@ public partial class MainWindow : Window
             {
                 if (EchoDelayCombo.SelectedIndex == 0)
                 {
-                    // Double long echo: bounce response
                     double echoBounce = (Math.Sin(_spectrumTick * 0.22) > 0.35) ? 1.4 : 0.7;
                     targetOut = Math.Clamp(targetIn * echoBounce, 4.0, maxH);
                     MicEffectBadge.Text = "ECO DOBLE LARGO";
@@ -477,21 +479,18 @@ public partial class MainWindow : Window
             {
                 if (StaticTypeCombo.SelectedIndex == 0)
                 {
-                    // 50-60 Hz hum energy in low frequencies
                     double humEnergy = i <= 2 ? (0.85 + Math.Sin(_spectrumTick * 0.8) * 0.1) : 0.15;
                     targetOut = Math.Clamp((targetIn * 0.35 + humEnergy) * maxH, 5.0, maxH);
                     MicEffectBadge.Text = "ZUMBIDO 50-60HZ";
                 }
                 else if (StaticTypeCombo.SelectedIndex == 1)
                 {
-                    // Continuous white noise across all bands
                     double whiteEnergy = 0.55 + Math.Sin(_spectrumTick * 1.5 + i * 2.1) * 0.2;
                     targetOut = Math.Clamp((targetIn * 0.30 + whiteEnergy) * maxH, 6.0, maxH);
                     MicEffectBadge.Text = "RUIDO BLANCO";
                 }
                 else
                 {
-                    // Cable static hiss in high frequencies
                     double hissEnergy = i >= 10 ? (0.75 + Math.Sin(_spectrumTick * 2.3 + i * 1.8) * 0.25) : 0.18;
                     targetOut = Math.Clamp((targetIn * 0.35 + hissEnergy) * maxH, 5.0, maxH);
                     MicEffectBadge.Text = "ESTÁTICA CABLE";
@@ -499,7 +498,10 @@ public partial class MainWindow : Window
             }
             else if (ModeMicSaturationRadio.IsChecked == true)
             {
-                targetOut = maxH;
+                float gain = (float)(MicSaturationSlider?.Value ?? 15.0);
+                double satMultiplier = 1.3 + (gain * 0.14);
+                double harmonics = (i >= 2 && i <= 13) ? Math.Sin(_spectrumTick * 0.75 + i * 1.25) * (gain * 0.25) * p : 0;
+                targetOut = Math.Clamp((targetIn * satMultiplier) + harmonics, 3.0, maxH);
                 MicEffectBadge.Text = "SATURADO";
             }
             else
@@ -507,7 +509,6 @@ public partial class MainWindow : Window
                 MicEffectBadge.Text = "EN VIVO";
             }
 
-            // Apply master volume to output spectrum
             double finalOut = targetOut * masterVol;
             _outBars[i].Height = _outBars[i].Height * 0.45 + finalOut * 0.55;
         }

@@ -1607,7 +1607,7 @@
                                         <TextBlock Grid.Column="0" Text="Fotogramas por segundo:" FontSize="11" FontWeight="Medium"
                                                    Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="0,0,10,0"/>
                                         <Slider x:Name="CamFpsSlider" Grid.Column="1" Minimum="1" Maximum="60" Value="30"
-                                                TickFrequency="1" IsSnapToTickEnabled="True"
+                                                TickFrequency="1" IsSnapToTickEnabled="True" IsMoveToPointEnabled="True"
                                                 Style="{StaticResource CleanSliderStyle}" ValueChanged="OnCamFpsSliderChanged"/>
                                         <Border Grid.Column="2" Background="#ffffff" BorderBrush="#d1d1d6" BorderThickness="1"
                                                 CornerRadius="4" Padding="6,1.5" Margin="8,0,0,0" VerticalAlignment="Center">
@@ -1987,7 +1987,7 @@
                                                    Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                                     </StackPanel>
                                     <Slider x:Name="MicMasterVolumeSlider" Grid.Column="1" Minimum="0" Maximum="100" Value="100"
-                                            Style="{StaticResource CleanSliderStyle}" VerticalAlignment="Center"
+                                            IsMoveToPointEnabled="True" Style="{StaticResource CleanSliderStyle}" VerticalAlignment="Center"
                                             ValueChanged="OnMicMasterVolumeChanged"/>
                                     <TextBlock x:Name="MicMasterVolumeText" Grid.Column="2" Text="100%" FontSize="10.5" FontWeight="SemiBold"
                                                Foreground="{StaticResource AccentBlueBrush}" VerticalAlignment="Center" Margin="10,0,0,0" Width="36" TextAlignment="Right"/>
@@ -2296,7 +2296,7 @@
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <Slider x:Name="MicSaturationSlider" Grid.Column="0" Minimum="2" Maximum="20" Value="15"
-                                                Style="{StaticResource CleanSliderStyle}" ValueChanged="OnMicSaturationSliderChanged"/>
+                                                IsMoveToPointEnabled="True" Style="{StaticResource CleanSliderStyle}" ValueChanged="OnMicSaturationSliderChanged"/>
                                         <TextBlock x:Name="SaturationLevelText" Grid.Column="1" Text="x15 • Alta" FontSize="10.5" FontWeight="SemiBold"
                                                    Foreground="{StaticResource AccentBlueBrush}" VerticalAlignment="Center" Margin="10,0,0,0"/>
                                     </Grid>
