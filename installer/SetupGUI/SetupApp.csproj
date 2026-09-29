@@ -5,6 +5,7 @@
     <UseWPF>true</UseWPF>
     <RootNamespace>CastDecoySetup</RootNamespace>
     <AssemblyName>CastDecoy-Setup</AssemblyName>
+    <Nullable>enable</Nullable>
     <ApplicationIcon>..\..\Assets\icon.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
