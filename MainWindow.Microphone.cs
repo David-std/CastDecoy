@@ -28,14 +28,17 @@ public partial class MainWindow : Window
 {
     private AudioSpoofService? _audioService;
     private bool _isMicActive = false;
-    private readonly Border[] _inBars = new Border[12];
-    private readonly Border[] _outBars = new Border[12];
+    private readonly Border[] _inBars = new Border[16];
+    private readonly Border[] _outBars = new Border[16];
     private DispatcherTimer? _spectrumTimer;
     private float _currentMicPeak = 0f;
     private int _spectrumTick = 0;
 
-    // Relative human vocal frequency distribution across 12 bands (60Hz to 16kHz)
-    private static readonly double[] VocalFrequencies = { 0.22, 0.48, 0.85, 0.95, 0.90, 0.78, 0.82, 0.68, 0.58, 0.48, 0.38, 0.28 };
+    // Vocal formant energy distribution across 16 bands (60Hz to 20kHz)
+    private static readonly double[] VocalFrequencies = {
+        0.18, 0.32, 0.52, 0.76, 0.92, 0.98, 0.94, 0.88,
+        0.82, 0.74, 0.65, 0.54, 0.44, 0.34, 0.24, 0.15
+    };
 
     private void InitMicrophoneControls()
     {
@@ -384,16 +387,16 @@ public partial class MainWindow : Window
         InSpectrumGrid.Children.Clear();
         OutSpectrumGrid.Children.Clear();
 
-        for (int i = 0; i < 12; i++)
+        for (int i = 0; i < 16; i++)
         {
             var bIn = new Border
             {
                 Background = new SolidColorBrush(MediaColor.FromRgb(0x5b, 0x8d, 0xf7)),
                 CornerRadius = new CornerRadius(2.5, 2.5, 0, 0),
-                Width = 9.5,
-                Margin = new Thickness(2, 0, 2, 0),
-                Height = 3,
-                VerticalAlignment = VerticalAlignment.Bottom
+                Width = 11,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Bottom,
+                Height = 3
             };
             _inBars[i] = bIn;
             InSpectrumGrid.Children.Add(bIn);
@@ -402,10 +405,10 @@ public partial class MainWindow : Window
             {
                 Background = new SolidColorBrush(MediaColor.FromRgb(0x5b, 0x8d, 0xf7)),
                 CornerRadius = new CornerRadius(2.5, 2.5, 0, 0),
-                Width = 9.5,
-                Margin = new Thickness(2, 0, 2, 0),
-                Height = 3,
-                VerticalAlignment = VerticalAlignment.Bottom
+                Width = 11,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Bottom,
+                Height = 3
             };
             _outBars[i] = bOut;
             OutSpectrumGrid.Children.Add(bOut);
@@ -421,7 +424,7 @@ public partial class MainWindow : Window
         _spectrumTick++;
         if (!_isMicActive)
         {
-            for (int i = 0; i < 12; i++)
+            for (int i = 0; i < 16; i++)
             {
                 _inBars[i].Height = Math.Max(2, _inBars[i].Height * 0.85);
                 _outBars[i].Height = Math.Max(2, _outBars[i].Height * 0.85);
@@ -433,9 +436,9 @@ public partial class MainWindow : Window
         float masterVol = _audioService?.MasterVolume ?? 1f;
         double maxH = 54.0;
 
-        for (int i = 0; i < 12; i++)
+        for (int i = 0; i < 16; i++)
         {
-            // Human voice formant energy distribution with subtle dynamic organic jitter
+            // Organic speech flutter and formant distribution
             double jitter = Math.Sin(_spectrumTick * 0.42 + i * 1.35) * 0.12 + Math.Cos(_spectrumTick * 0.28 + i * 0.95) * 0.08;
             double bandEnvelope = Math.Clamp(VocalFrequencies[i] * p + jitter * p, 0.05, 1.0);
             double targetIn = Math.Clamp(bandEnvelope * maxH, 3.0, maxH);
@@ -459,7 +462,7 @@ public partial class MainWindow : Window
             {
                 if (EchoDelayCombo.SelectedIndex == 0)
                 {
-                    // Eco doble y largo (pulsos y cola amplia)
+                    // Double long echo: bounce response
                     double echoBounce = (Math.Sin(_spectrumTick * 0.22) > 0.35) ? 1.4 : 0.7;
                     targetOut = Math.Clamp(targetIn * echoBounce, 4.0, maxH);
                     MicEffectBadge.Text = "ECO DOBLE LARGO";
@@ -474,22 +477,22 @@ public partial class MainWindow : Window
             {
                 if (StaticTypeCombo.SelectedIndex == 0)
                 {
-                    // Zumbido eléctrico 50-60 Hz: picos en frecuencias bajas (bandas 0 y 1)
-                    double humEnergy = i <= 1 ? (0.85 + Math.Sin(_spectrumTick * 0.8) * 0.1) : 0.15;
+                    // 50-60 Hz hum energy in low frequencies
+                    double humEnergy = i <= 2 ? (0.85 + Math.Sin(_spectrumTick * 0.8) * 0.1) : 0.15;
                     targetOut = Math.Clamp((targetIn * 0.35 + humEnergy) * maxH, 5.0, maxH);
                     MicEffectBadge.Text = "ZUMBIDO 50-60HZ";
                 }
                 else if (StaticTypeCombo.SelectedIndex == 1)
                 {
-                    // Ruido blanco continuo: uniforme en todas las 12 bandas
+                    // Continuous white noise across all bands
                     double whiteEnergy = 0.55 + Math.Sin(_spectrumTick * 1.5 + i * 2.1) * 0.2;
                     targetOut = Math.Clamp((targetIn * 0.30 + whiteEnergy) * maxH, 6.0, maxH);
                     MicEffectBadge.Text = "RUIDO BLANCO";
                 }
                 else
                 {
-                    // Estática sibilante de cable: picos en agudos (bandas 7 a 11)
-                    double hissEnergy = i >= 7 ? (0.75 + Math.Sin(_spectrumTick * 2.3 + i * 1.8) * 0.25) : 0.18;
+                    // Cable static hiss in high frequencies
+                    double hissEnergy = i >= 10 ? (0.75 + Math.Sin(_spectrumTick * 2.3 + i * 1.8) * 0.25) : 0.18;
                     targetOut = Math.Clamp((targetIn * 0.35 + hissEnergy) * maxH, 5.0, maxH);
                     MicEffectBadge.Text = "ESTÁTICA CABLE";
                 }
@@ -504,7 +507,7 @@ public partial class MainWindow : Window
                 MicEffectBadge.Text = "EN VIVO";
             }
 
-            // Aplicar el volumen general de salida a la visualización de salida
+            // Apply master volume to output spectrum
             double finalOut = targetOut * masterVol;
             _outBars[i].Height = _outBars[i].Height * 0.45 + finalOut * 0.55;
         }

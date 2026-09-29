@@ -1045,7 +1045,6 @@ public partial class MainWindow : Window
             CamStatusDot.Fill = AccentBlueBrush;
             TileCamStatusText.Text = "Señal inestable / Lag";
             TileCamStatusText.Foreground = AccentBlueBrush;
-            StutterBadge.Visibility = Visibility.Visible;
         }
         else
         {
@@ -1055,12 +1054,10 @@ public partial class MainWindow : Window
         }
     }
 
-    
     private void StopStutterMode()
     {
         _isCamStuttering = false;
         _stutterStopwatch.Stop();
-        if (StutterBadge != null) StutterBadge.Visibility = Visibility.Collapsed;
         if (StutterCamBtn != null)
         {
             StutterCamBtn.Content = "Iniciar";
@@ -1068,26 +1065,76 @@ public partial class MainWindow : Window
         }
     }
 
-    
     private void OnGlitchOptionClick(object sender, MouseButtonEventArgs e)
     {
         ModeGlitchRadio.IsChecked = true;
         OnCamModeRadioClicked(ModeGlitchRadio, null!);
     }
 
-    
     private void OnToggleGlitchClick(object sender, RoutedEventArgs e)
     {
         ModeGlitchRadio.IsChecked = true;
         OnCamModeRadioClicked(ModeGlitchRadio, null!);
     }
 
-    
     private void OnGlitchModeChanged(object sender, SelectionChangedEventArgs e)
     {
+        UpdateGlitchMode();
     }
 
-    
+    private void UpdateGlitchMode()
+    {
+        if (GlitchFrameOverlay == null || GlitchDarkBlock == null || GlitchStatusTitle == null || GlitchDividerLine == null) return;
+
+        int mode = GlitchModeCombo?.SelectedIndex ?? 0;
+        switch (mode)
+        {
+            case 1:
+                // Upper half dark
+                Grid.SetRow(GlitchDarkBlock, 0);
+                Grid.SetRowSpan(GlitchDarkBlock, 1);
+                GlitchDarkBlock.Height = double.NaN;
+                GlitchDarkBlock.VerticalAlignment = VerticalAlignment.Stretch;
+
+                GlitchDividerLine.Visibility = Visibility.Visible;
+                Grid.SetRow(GlitchDividerLine, 1);
+                GlitchDividerLine.VerticalAlignment = VerticalAlignment.Top;
+
+                GlitchStatusTitle.Text = "SEÑAL CORTADA • MITAD SUPERIOR OSCURA";
+                if (GlitchStatusSubtitle != null) GlitchStatusSubtitle.Text = "Fallo de sincronía superior";
+                break;
+
+            case 2:
+                // Digital noise band across center
+                Grid.SetRow(GlitchDarkBlock, 0);
+                Grid.SetRowSpan(GlitchDarkBlock, 2);
+                GlitchDarkBlock.Height = 70;
+                GlitchDarkBlock.VerticalAlignment = VerticalAlignment.Center;
+
+                GlitchDividerLine.Visibility = Visibility.Collapsed;
+
+                GlitchStatusTitle.Text = "SEÑAL CORTADA • BANDA DE RUIDO";
+                if (GlitchStatusSubtitle != null) GlitchStatusSubtitle.Text = "Interferencia de reloj de sensor";
+                break;
+
+            case 0:
+            default:
+                // Lower half dark
+                Grid.SetRow(GlitchDarkBlock, 1);
+                Grid.SetRowSpan(GlitchDarkBlock, 1);
+                GlitchDarkBlock.Height = double.NaN;
+                GlitchDarkBlock.VerticalAlignment = VerticalAlignment.Stretch;
+
+                GlitchDividerLine.Visibility = Visibility.Visible;
+                Grid.SetRow(GlitchDividerLine, 0);
+                GlitchDividerLine.VerticalAlignment = VerticalAlignment.Bottom;
+
+                GlitchStatusTitle.Text = "SEÑAL CORTADA • MITAD INFERIOR OSCURA";
+                if (GlitchStatusSubtitle != null) GlitchStatusSubtitle.Text = "Fallo de sincronía simulado";
+                break;
+        }
+    }
+
     private void SetGlitchMode(bool active)
     {
         ClearAllCamEffects();
@@ -1097,6 +1144,7 @@ public partial class MainWindow : Window
             ModeGlitchRadio.IsChecked = true;
             if (GlitchToggleBtn != null) GlitchToggleBtn.Style = (Style)FindResource("PrimaryPillBtn");
             if (GlitchFrameOverlay != null) GlitchFrameOverlay.Visibility = Visibility.Visible;
+            UpdateGlitchMode();
             if (_isCamActive && CamBadgeText != null)
             {
                 CamBadgeText.Text = "Video cortado";

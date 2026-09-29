@@ -217,14 +217,11 @@ public class AudioSpoofService : IDisposable
         int sampleCount = bytesRecorded / 2;
         float maxPeak = 0f;
 
-        // Choppy cycle threshold based on _choppyRate:
-        // Rate 0 (25%): 6000 samples cycle (~136ms mute per 544ms)
-        // Rate 1 (50%): 4410 samples cycle (~200ms mute per 400ms)
-        // Rate 2 (75%): 3000 samples cycle (~270ms mute per 360ms)
+        // Frame discard rate configuration
         int choppyCycle = _choppyRate == 0 ? 6000 : (_choppyRate == 2 ? 3000 : 4410);
         int choppyMuteDuration = _choppyRate == 0 ? (int)(choppyCycle * 0.25f) : (_choppyRate == 2 ? (int)(choppyCycle * 0.75f) : (int)(choppyCycle * 0.50f));
 
-        // Delay samples for echo modes
+        // Multiple echo delay samples
         int multipleDelay = _echoMode switch
         {
             1 => 5292,  // 120 ms
@@ -262,7 +259,7 @@ public class AudioSpoofService : IDisposable
                 case AudioSpoofMode.Echo:
                     if (_echoMode == 0)
                     {
-                        // Eco doble y largo (Tap 1 a 280ms, Tap 2 a 560ms con cola expansiva)
+                        // Double long echo: 280ms and 560ms taps
                         const int tap1Delay = 12348; // 280 ms
                         const int tap2Delay = 24696; // 560 ms
                         int idx1 = (_echoIndex - tap1Delay + 44100) % 44100;
@@ -271,14 +268,13 @@ public class AudioSpoofService : IDisposable
                         short tap2 = _echoBuffer[idx2];
 
                         mixed = orig + (int)(tap1 * 0.55f + tap2 * 0.38f);
-                        // Feedback al buffer circular
                         int writeBack = orig + (int)(tap1 * 0.40f + tap2 * 0.25f);
                         _echoBuffer[_echoIndex] = (short)Math.Clamp(writeBack, -32768, 32767);
                         _echoIndex = (_echoIndex + 1) % 44100;
                     }
                     else
                     {
-                        // Eco múltiple con delay según selección (120, 180, 260 ms)
+                        // Multiple echo with configurable delay
                         int readIdx = (_echoIndex - multipleDelay + 44100) % 44100;
                         short delayed = _echoBuffer[readIdx];
                         mixed = orig + (int)(delayed * 0.65f);
@@ -290,7 +286,7 @@ public class AudioSpoofService : IDisposable
                 case AudioSpoofMode.StaticNoise:
                     if (_staticType == 0)
                     {
-                        // Zumbido eléctrico 50-60 Hz con armónicos
+                        // 50-60 Hz ground hum with harmonics
                         double t = (double)_sampleCountGlobal / 44100.0;
                         double hum55 = Math.Sin(2.0 * Math.PI * 55.0 * t) * 6000.0;
                         double hum110 = Math.Sin(2.0 * Math.PI * 110.0 * t) * 2500.0;
@@ -300,13 +296,13 @@ public class AudioSpoofService : IDisposable
                     }
                     else if (_staticType == 1)
                     {
-                        // Ruido blanco continuo
+                        // Continuous white noise
                         short white = (short)_random.Next(-6500, 6500);
                         mixed = (int)(orig * 0.60f + white);
                     }
                     else
                     {
-                        // Estática sibilante de cable (hiss de alta frecuencia + pops)
+                        // Sibilant cable static with intermittent crackles
                         int crackle = _random.NextDouble() < 0.012 ? _random.Next(-18000, 18000) : 0;
                         int hiss = _random.Next(-3500, 3500) + crackle;
                         mixed = (int)(orig * 0.55f + hiss);
@@ -318,7 +314,7 @@ public class AudioSpoofService : IDisposable
                     break;
             }
 
-            // Aplicar volumen general de salida (Master Volume)
+            // Apply master output volume
             mixed = (int)(mixed * _masterVolume);
             short finalSample = (short)Math.Clamp(mixed, -32768, 32767);
 

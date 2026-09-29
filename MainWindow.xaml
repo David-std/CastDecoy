@@ -1540,15 +1540,15 @@
                                             <RowDefinition Height="*"/>
                                             <RowDefinition Height="*"/>
                                         </Grid.RowDefinitions>
-                                        <Border Grid.Row="1" Background="#0A0D14" Opacity="0.96">
+                                        <Border x:Name="GlitchDarkBlock" Grid.Row="1" Background="#0A0D14" Opacity="0.96">
                                             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                                                 <Border Background="#1e293b" CornerRadius="4" Padding="8,3" Margin="0,0,0,4">
-                                                    <TextBlock Text="SEÑAL CORTADA • MITAD OSCURA" FontSize="9.5" FontWeight="SemiBold" Foreground="#94a3b8"/>
+                                                    <TextBlock x:Name="GlitchStatusTitle" Text="SEÑAL CORTADA • MITAD INFERIOR OSCURA" FontSize="9.5" FontWeight="SemiBold" Foreground="#94a3b8"/>
                                                 </Border>
-                                                <TextBlock Text="Fallo de sincronía simulado" FontSize="9" Foreground="#64748b" HorizontalAlignment="Center"/>
+                                                <TextBlock x:Name="GlitchStatusSubtitle" Text="Fallo de sincronía simulado" FontSize="9" Foreground="#64748b" HorizontalAlignment="Center"/>
                                             </StackPanel>
                                         </Border>
-                                        <Border Grid.Row="0" VerticalAlignment="Bottom" Height="2" Background="#38bdf8" Opacity="0.5"/>
+                                        <Border x:Name="GlitchDividerLine" Grid.Row="0" VerticalAlignment="Bottom" Height="2" Background="#38bdf8" Opacity="0.5"/>
                                     </Grid>
 
                                     <Border x:Name="CamInactivePlaceholder" HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -1629,13 +1629,13 @@
                         </Border.Effect>
                         <Grid>
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>   <!-- Header Title -->
-                                <RowDefinition Height="0.9*"/>   <!-- Option 1: En vivo -->
-                                <RowDefinition Height="0.7*"/>   <!-- Option 2: Congelar fotograma -->
-                                <RowDefinition Height="1.0*"/>   <!-- Option 3: Señal inestable -->
-                                <RowDefinition Height="1.0*"/>   <!-- Option 4: Color de espera -->
-                                <RowDefinition Height="1.0*"/>   <!-- Option 5: Repetición en bucle -->
-                                <RowDefinition Height="1.0*"/>   <!-- Option 6: Video cortado -->
+                                <RowDefinition Height="Auto"/>    <!-- Header Title -->
+                                <RowDefinition Height="0.85*"/>   <!-- Option 1: En vivo -->
+                                <RowDefinition Height="0.75*"/>   <!-- Option 2: Congelar fotograma -->
+                                <RowDefinition Height="1.15*"/>   <!-- Option 3: Señal inestable -->
+                                <RowDefinition Height="1.0*"/>    <!-- Option 4: Color de espera -->
+                                <RowDefinition Height="1.0*"/>    <!-- Option 5: Repetición en bucle -->
+                                <RowDefinition Height="1.0*"/>    <!-- Option 6: Video cortado -->
                             </Grid.RowDefinitions>
 
                             <!-- Header Title -->
@@ -1645,7 +1645,7 @@
                             </Border>
 
                             <!-- Option 1: En vivo -->
-                            <Border Grid.Row="1" BorderBrush="{StaticResource DividerLineBrush}" BorderThickness="0,0,0,1" Padding="18,6"
+                            <Border Grid.Row="1" BorderBrush="{StaticResource DividerLineBrush}" BorderThickness="0,0,0,1" Padding="18,5"
                                     Cursor="Hand" MouseLeftButtonDown="OnLiveOptionClick">
                                 <StackPanel VerticalAlignment="Center">
                                     <RadioButton x:Name="ModeLiveRadio" GroupName="CamModeGroup" IsChecked="True"
@@ -1653,9 +1653,9 @@
                                         <TextBlock Text="En vivo" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" FontSize="12.5"/>
                                     </RadioButton>
                                     <TextBlock Text="Transmite la señal directa del sensor físico a resolución nativa."
-                                               FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="26,3,0,4" TextWrapping="Wrap"/>
-                                    <StackPanel Orientation="Horizontal" Margin="26,2,0,0">
-                                        <Border Background="#f2f2f7" BorderBrush="#e5e5ea" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                                               FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="26,2,0,3" TextWrapping="Wrap"/>
+                                    <StackPanel Orientation="Horizontal" Margin="26,1,0,0">
+                                        <Border Background="#f2f2f7" BorderBrush="#e5e5ea" BorderThickness="1" CornerRadius="4" Padding="6,1.5">
                                             <TextBlock Text="Perfil: Directo a hardware" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"/>
                                         </Border>
                                     </StackPanel>
@@ -1663,7 +1663,7 @@
                             </Border>
 
                             <!-- Option 2: Congelar fotograma -->
-                            <Border Grid.Row="2" BorderBrush="{StaticResource DividerLineBrush}" BorderThickness="0,0,0,1" Padding="18,6"
+                            <Border Grid.Row="2" BorderBrush="{StaticResource DividerLineBrush}" BorderThickness="0,0,0,1" Padding="18,5"
                                     Cursor="Hand" MouseLeftButtonDown="OnFreezeOptionClick">
                                 <Grid VerticalAlignment="Center">
                                     <Grid.ColumnDefinitions>
@@ -1676,7 +1676,7 @@
                                             <TextBlock Text="Congelar fotograma" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" FontSize="12.5"/>
                                         </RadioButton>
                                         <TextBlock Text="Mantiene fija la última imagen sin cortar la transmisión."
-                                                   FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="26,3,0,4" TextWrapping="Wrap"/>
+                                                   FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="26,2,0,0" TextWrapping="Wrap"/>
                                     </StackPanel>
                                     <Button Grid.Column="1" x:Name="FreezeCamToggleBtn" Style="{StaticResource SecondaryPillBtn}"
                                             Height="26" Padding="12,0" Content="Congelar" VerticalAlignment="Center" Margin="10,0,0,0"
@@ -1685,7 +1685,7 @@
                             </Border>
 
                             <!-- Option 3: Señal inestable -->
-                            <Border Grid.Row="3" BorderBrush="{StaticResource DividerLineBrush}" BorderThickness="0,0,0,1" Padding="18,6"
+                            <Border Grid.Row="3" BorderBrush="{StaticResource DividerLineBrush}" BorderThickness="0,0,0,1" Padding="18,5"
                                     Cursor="Hand" MouseLeftButtonDown="OnStutterOptionClick">
                                 <Grid VerticalAlignment="Center">
                                     <Grid.ColumnDefinitions>
@@ -1693,7 +1693,6 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
-                                        <TextBlock x:Name="StutterBadge" Visibility="Collapsed"/>
                                         <RadioButton x:Name="ModeStutterRadio" GroupName="CamModeGroup"
                                                      Style="{StaticResource RadioButtonStyle}" Click="OnCamModeRadioClicked">
                                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -1701,9 +1700,9 @@
                                                 <ContentControl Style="{StaticResource HelpInfoCircle}" ToolTip="Simula microcortes, caída drástica de fotogramas y pérdida de paquetes de red."/>
                                             </StackPanel>
                                         </RadioButton>
-                                        <TextBlock Text="Simula microcortes, caída drástica de fotogramas y pérdida de paquetes de red."
-                                                   FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="26,3,0,4" TextWrapping="Wrap"/>
-                                        <StackPanel Orientation="Horizontal" Margin="26,2,0,0">
+                                        <TextBlock Text="Simula microcortes y pérdida de paquetes de red."
+                                                   FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="26,2,0,2"/>
+                                        <StackPanel Orientation="Horizontal" Margin="26,1,0,0">
                                             <TextBlock Text="Fluctuación:" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                             <ComboBox x:Name="StutterCycleCombo" Width="95" Height="24"
                                                       SelectionChanged="OnStutterCycleChanged">
@@ -2051,7 +2050,7 @@
                                         </Grid>
 
                                         <!-- Animated Responsive Bars (Multi-band Equalizer) -->
-                                        <StackPanel x:Name="InSpectrumGrid" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom" Height="58" Margin="0,0,0,12"/>
+                                        <UniformGrid x:Name="InSpectrumGrid" Rows="1" Margin="28,0,16,12" VerticalAlignment="Bottom" Height="58"/>
                                     </Grid>
                                 </Grid>
                             </Border>
@@ -2114,7 +2113,7 @@
                                         </Grid>
 
                                         <!-- Animated Responsive Bars (Multi-band Equalizer) -->
-                                        <StackPanel x:Name="OutSpectrumGrid" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom" Height="58" Margin="0,0,0,12"/>
+                                        <UniformGrid x:Name="OutSpectrumGrid" Rows="1" Margin="28,0,16,12" VerticalAlignment="Bottom" Height="58"/>
                                     </Grid>
                                 </Grid>
                             </Border>
