@@ -1,0 +1,91 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release Tag (e.g. v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build & Publish Release
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+          dotnet-quality: 'preview'
+
+      - name: Determine Release Tag
+        shell: pwsh
+        run: |
+          $tag = "${{ github.event.inputs.tag_name }}"
+          if ([string]::IsNullOrWhiteSpace($tag)) {
+            $tag = "${{ github.ref_name }}"
+          }
+          if ([string]::IsNullOrWhiteSpace($tag) -or $tag -eq "main") {
+            $tag = "v1.0.0"
+          }
+          echo "RELEASE_TAG=$tag" >> $env:GITHUB_ENV
+          Write-Host "Target Release Tag: $tag"
+
+      - name: Publish CastDecoy Application (win-x64)
+        shell: pwsh
+        run: |
+          dotnet publish CastDecoy.csproj -c Release -r win-x64 --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:EnableCompressionInSingleFile=true `
+            -o bin/publish/win-x64
+
+      - name: Package Portable Zip
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist
+          Compress-Archive -Path bin/publish/win-x64/* -DestinationPath "dist/CastDecoy-$env:RELEASE_TAG-win-x64.zip" -Force
+          # SetupApp embeds CastDecoy-v1.0.0-win-x64.zip by default
+          if ($env:RELEASE_TAG -ne "v1.0.0") {
+            Copy-Item "dist/CastDecoy-$env:RELEASE_TAG-win-x64.zip" "dist/CastDecoy-v1.0.0-win-x64.zip" -Force
+          }
+
+      - name: Build and Publish GUI Setup Installer
+        shell: pwsh
+        run: |
+          dotnet publish installer/SetupGUI/SetupApp.csproj -c Release -r win-x64 --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:EnableCompressionInSingleFile=true `
+            -o bin/publish-setup
+          Copy-Item bin/publish-setup/CastDecoy-Setup.exe "dist/CastDecoy-Setup-$env:RELEASE_TAG.exe" -Force
+
+      - name: Create or Update GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $installerPath = "dist/CastDecoy-Setup-$env:RELEASE_TAG.exe"
+          $zipPath = "dist/CastDecoy-$env:RELEASE_TAG-win-x64.zip"
+
+          gh release view $env:RELEASE_TAG 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Release $env:RELEASE_TAG already exists. Uploading assets..."
+            gh release upload $env:RELEASE_TAG $installerPath $zipPath --clobber
+          } else {
+            Write-Host "Creating new GitHub Release $env:RELEASE_TAG..."
+            gh release create $env:RELEASE_TAG $installerPath $zipPath `
+              --title "CastDecoy $env:RELEASE_TAG" `
+              --generate-notes
+          }
