@@ -10,6 +10,7 @@
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DefaultItemExcludes>$(DefaultItemExcludes);installer\**</DefaultItemExcludes>
   </PropertyGroup>
   <ItemGroup>
     <Resource Include="Assets\brand.png" />

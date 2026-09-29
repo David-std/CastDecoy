@@ -24,20 +24,33 @@ public class AudioSpoofService : IDisposable
     private AudioSpoofMode _mode = AudioSpoofMode.Normal;
     private bool _isMonitoring = false;
     private float _saturationGain = 12f;
+    private float _masterVolume = 1.0f;
     private bool _isActive = false;
 
     private readonly Random _random = new();
 
+    // Choppy settings
     private int _choppySampleCount = 0;
     private bool _choppyMuted = false;
-    private const int ChoppyCycleSamples = 5292;
+    private int _choppyRate = 1; // 0: 25%, 1: 50%, 2: 75%
 
-    private readonly short[] _echoBuffer = new short[11025];
+    // Echo settings (44100 samples = 1 full second buffer)
+    private readonly short[] _echoBuffer = new short[44100];
     private int _echoIndex = 0;
+    private int _echoMode = 0; // 0: Double long, 1: 120ms multiple, 2: 180ms multiple, 3: 260ms multiple
+
+    // Static noise settings
+    private int _staticType = 0; // 0: 50-60Hz hum, 1: White noise, 2: Sibilant cable static
+    private long _sampleCountGlobal = 0;
+
+    // Multi-band spectrum estimations (12 frequency bands)
+    private readonly float[] _bandPeaks = new float[12];
 
     public event Action<float>? PeakLevelChanged;
+    public event Action<float, float[]>? SpectrumDataChanged;
     public bool IsActive => _isActive;
     public AudioSpoofMode Mode => _mode;
+    public float MasterVolume => _masterVolume;
 
     public static List<string> GetInputDevices()
     {
@@ -74,7 +87,6 @@ public class AudioSpoofService : IDisposable
             _monitorProvider = new BufferedWaveProvider(new WaveFormat(44100, 16, 1))
             {
                 DiscardOnBufferOverflow = true
-                
             };
 
             _waveOut = new WaveOut();
@@ -128,6 +140,8 @@ public class AudioSpoofService : IDisposable
 
         _monitorProvider = null;
         PeakLevelChanged?.Invoke(0f);
+        Array.Clear(_bandPeaks, 0, _bandPeaks.Length);
+        SpectrumDataChanged?.Invoke(0f, _bandPeaks);
     }
 
     public void SetMode(AudioSpoofMode mode)
@@ -143,6 +157,30 @@ public class AudioSpoofService : IDisposable
             _choppySampleCount = 0;
             _choppyMuted = false;
         }
+    }
+
+    public void SetMasterVolume(float volume)
+    {
+        _masterVolume = Math.Clamp(volume, 0f, 1f);
+    }
+
+    public void SetEchoMode(int modeIndex)
+    {
+        _echoMode = Math.Clamp(modeIndex, 0, 3);
+        Array.Clear(_echoBuffer, 0, _echoBuffer.Length);
+        _echoIndex = 0;
+    }
+
+    public void SetStaticType(int typeIndex)
+    {
+        _staticType = Math.Clamp(typeIndex, 0, 2);
+    }
+
+    public void SetChoppyRate(int rateIndex)
+    {
+        _choppyRate = Math.Clamp(rateIndex, 0, 2);
+        _choppySampleCount = 0;
+        _choppyMuted = false;
     }
 
     public void SetMonitoring(bool enable)
@@ -179,95 +217,117 @@ public class AudioSpoofService : IDisposable
         int sampleCount = bytesRecorded / 2;
         float maxPeak = 0f;
 
-        switch (_mode)
+        // Choppy cycle threshold based on _choppyRate:
+        // Rate 0 (25%): 6000 samples cycle (~136ms mute per 544ms)
+        // Rate 1 (50%): 4410 samples cycle (~200ms mute per 400ms)
+        // Rate 2 (75%): 3000 samples cycle (~270ms mute per 360ms)
+        int choppyCycle = _choppyRate == 0 ? 6000 : (_choppyRate == 2 ? 3000 : 4410);
+        int choppyMuteDuration = _choppyRate == 0 ? (int)(choppyCycle * 0.25f) : (_choppyRate == 2 ? (int)(choppyCycle * 0.75f) : (int)(choppyCycle * 0.50f));
+
+        // Delay samples for echo modes
+        int multipleDelay = _echoMode switch
         {
-            case AudioSpoofMode.Normal:
-                for (int i = 0; i < sampleCount; i++)
-                {
-                    short s = BitConverter.ToInt16(processed, i * 2);
-                    float abs = Math.Abs(s) / 32768f;
-                    if (abs > maxPeak) maxPeak = abs;
-                }
-                break;
+            1 => 5292,  // 120 ms
+            2 => 7938,  // 180 ms
+            3 => 11466, // 260 ms
+            _ => 12348  // Default 280 ms
+        };
 
-            case AudioSpoofMode.FakeMute:
-                Array.Clear(processed, 0, processed.Length);
-                maxPeak = 0f;
-                break;
+        for (int i = 0; i < sampleCount; i++)
+        {
+            _sampleCountGlobal++;
+            short orig = BitConverter.ToInt16(e.Buffer, i * 2);
+            int mixed = orig;
 
-            case AudioSpoofMode.Choppy:
-                for (int i = 0; i < sampleCount; i++)
-                {
+            switch (_mode)
+            {
+                case AudioSpoofMode.Normal:
+                    mixed = orig;
+                    break;
+
+                case AudioSpoofMode.FakeMute:
+                    mixed = 0;
+                    break;
+
+                case AudioSpoofMode.Choppy:
                     _choppySampleCount++;
-                    if (_choppySampleCount >= ChoppyCycleSamples)
+                    if (_choppySampleCount >= choppyCycle)
                     {
                         _choppySampleCount = 0;
-                        _choppyMuted = !_choppyMuted;
                     }
+                    _choppyMuted = _choppySampleCount < choppyMuteDuration;
+                    mixed = _choppyMuted ? 0 : orig;
+                    break;
 
-                    if (_choppyMuted)
+                case AudioSpoofMode.Echo:
+                    if (_echoMode == 0)
                     {
-                        processed[i * 2] = 0;
-                        processed[i * 2 + 1] = 0;
+                        // Eco doble y largo (Tap 1 a 280ms, Tap 2 a 560ms con cola expansiva)
+                        const int tap1Delay = 12348; // 280 ms
+                        const int tap2Delay = 24696; // 560 ms
+                        int idx1 = (_echoIndex - tap1Delay + 44100) % 44100;
+                        int idx2 = (_echoIndex - tap2Delay + 44100) % 44100;
+                        short tap1 = _echoBuffer[idx1];
+                        short tap2 = _echoBuffer[idx2];
+
+                        mixed = orig + (int)(tap1 * 0.55f + tap2 * 0.38f);
+                        // Feedback al buffer circular
+                        int writeBack = orig + (int)(tap1 * 0.40f + tap2 * 0.25f);
+                        _echoBuffer[_echoIndex] = (short)Math.Clamp(writeBack, -32768, 32767);
+                        _echoIndex = (_echoIndex + 1) % 44100;
                     }
                     else
                     {
-                        short s = BitConverter.ToInt16(processed, i * 2);
-                        float abs = Math.Abs(s) / 32768f;
-                        if (abs > maxPeak) maxPeak = abs;
+                        // Eco múltiple con delay según selección (120, 180, 260 ms)
+                        int readIdx = (_echoIndex - multipleDelay + 44100) % 44100;
+                        short delayed = _echoBuffer[readIdx];
+                        mixed = orig + (int)(delayed * 0.65f);
+                        _echoBuffer[_echoIndex] = (short)Math.Clamp(mixed, -32768, 32767);
+                        _echoIndex = (_echoIndex + 1) % 44100;
                     }
-                }
-                break;
+                    break;
 
-            case AudioSpoofMode.Echo:
-                for (int i = 0; i < sampleCount; i++)
-                {
-                    short orig = BitConverter.ToInt16(processed, i * 2);
-                    short delayed = _echoBuffer[_echoIndex];
-                    int mixed = orig + (int)(delayed * 0.60f);
-                    if (mixed > 32767) mixed = 32767;
-                    if (mixed < -32768) mixed = -32768;
-                    _echoBuffer[_echoIndex] = (short)mixed;
-                    _echoIndex++;
-                    if (_echoIndex >= _echoBuffer.Length) _echoIndex = 0;
+                case AudioSpoofMode.StaticNoise:
+                    if (_staticType == 0)
+                    {
+                        // Zumbido eléctrico 50-60 Hz con armónicos
+                        double t = (double)_sampleCountGlobal / 44100.0;
+                        double hum55 = Math.Sin(2.0 * Math.PI * 55.0 * t) * 6000.0;
+                        double hum110 = Math.Sin(2.0 * Math.PI * 110.0 * t) * 2500.0;
+                        double humBuzz = Math.Sin(2.0 * Math.PI * 165.0 * t) * 1200.0;
+                        double buzz = hum55 + hum110 + humBuzz + _random.Next(-1000, 1000);
+                        mixed = (int)(orig * 0.65f + buzz);
+                    }
+                    else if (_staticType == 1)
+                    {
+                        // Ruido blanco continuo
+                        short white = (short)_random.Next(-6500, 6500);
+                        mixed = (int)(orig * 0.60f + white);
+                    }
+                    else
+                    {
+                        // Estática sibilante de cable (hiss de alta frecuencia + pops)
+                        int crackle = _random.NextDouble() < 0.012 ? _random.Next(-18000, 18000) : 0;
+                        int hiss = _random.Next(-3500, 3500) + crackle;
+                        mixed = (int)(orig * 0.55f + hiss);
+                    }
+                    break;
 
-                    byte[] b = BitConverter.GetBytes((short)mixed);
-                    processed[i * 2] = b[0];
-                    processed[i * 2 + 1] = b[1];
+                case AudioSpoofMode.Saturation:
+                    mixed = (int)(orig * _saturationGain);
+                    break;
+            }
 
-                    float abs = Math.Abs(mixed) / 32768f;
-                    if (abs > maxPeak) maxPeak = abs;
-                }
-                break;
+            // Aplicar volumen general de salida (Master Volume)
+            mixed = (int)(mixed * _masterVolume);
+            short finalSample = (short)Math.Clamp(mixed, -32768, 32767);
 
-            case AudioSpoofMode.StaticNoise:
-                for (int i = 0; i < sampleCount; i++)
-                {
-                    short noise = (short)_random.Next(-10000, 10000);
-                    byte[] b = BitConverter.GetBytes(noise);
-                    processed[i * 2] = b[0];
-                    processed[i * 2 + 1] = b[1];
-                    float abs = Math.Abs(noise) / 32768f;
-                    if (abs > maxPeak) maxPeak = abs;
-                }
-                break;
+            byte[] b = BitConverter.GetBytes(finalSample);
+            processed[i * 2] = b[0];
+            processed[i * 2 + 1] = b[1];
 
-            case AudioSpoofMode.Saturation:
-                for (int i = 0; i < sampleCount; i++)
-                {
-                    short s = BitConverter.ToInt16(processed, i * 2);
-                    int amplified = (int)(s * _saturationGain);
-                    if (amplified > 32767) amplified = 32767;
-                    if (amplified < -32768) amplified = -32768;
-
-                    byte[] b = BitConverter.GetBytes((short)amplified);
-                    processed[i * 2] = b[0];
-                    processed[i * 2 + 1] = b[1];
-
-                    float abs = Math.Abs(amplified) / 32768f;
-                    if (abs > maxPeak) maxPeak = abs;
-                }
-                break;
+            float abs = Math.Abs(finalSample) / 32768f;
+            if (abs > maxPeak) maxPeak = abs;
         }
 
         if (_isMonitoring && _monitorProvider != null)

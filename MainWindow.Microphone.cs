@@ -28,22 +28,32 @@ public partial class MainWindow : Window
 {
     private AudioSpoofService? _audioService;
     private bool _isMicActive = false;
-    private readonly Border[] _inBars = new Border[16];
-    private readonly Border[] _outBars = new Border[16];
+    private readonly Border[] _inBars = new Border[12];
+    private readonly Border[] _outBars = new Border[12];
     private DispatcherTimer? _spectrumTimer;
     private float _currentMicPeak = 0f;
     private int _spectrumTick = 0;
 
-    
+    // Relative human vocal frequency distribution across 12 bands (60Hz to 16kHz)
+    private static readonly double[] VocalFrequencies = { 0.22, 0.48, 0.85, 0.95, 0.90, 0.78, 0.82, 0.68, 0.58, 0.48, 0.38, 0.28 };
+
     private void InitMicrophoneControls()
     {
         _audioService = new AudioSpoofService();
         _audioService.PeakLevelChanged += OnMicPeakLevelChanged;
         ScanMicDevices();
         SetupSpectrumBars();
+
+        if (EchoDelayCombo != null && EchoDelayCombo.SelectedIndex >= 0)
+            _audioService.SetEchoMode(EchoDelayCombo.SelectedIndex);
+        if (StaticTypeCombo != null && StaticTypeCombo.SelectedIndex >= 0)
+            _audioService.SetStaticType(StaticTypeCombo.SelectedIndex);
+        if (ChoppyRateCombo != null && ChoppyRateCombo.SelectedIndex >= 0)
+            _audioService.SetChoppyRate(ChoppyRateCombo.SelectedIndex);
+        if (MicMasterVolumeSlider != null)
+            _audioService.SetMasterVolume((float)(MicMasterVolumeSlider.Value / 100.0));
     }
 
-    
     private void ScanMicDevices()
     {
         MicDeviceComboBox.Items.Clear();
@@ -57,13 +67,11 @@ public partial class MainWindow : Window
         MicDeviceComboBox.SelectedIndex = 0;
     }
 
-    
     private void OnRefreshMicsClick(object sender, RoutedEventArgs e)
     {
         ScanMicDevices();
     }
 
-    
     private void OnMicDeviceChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_isMicActive)
@@ -72,7 +80,6 @@ public partial class MainWindow : Window
         }
     }
 
-    
     private void OnMicPeakLevelChanged(float peak)
     {
         _currentMicPeak = peak;
@@ -98,7 +105,6 @@ public partial class MainWindow : Window
         }, DispatcherPriority.Background);
     }
 
-    
     private void UpdateVuBlocks(int pct)
     {
         if (MicVuBlocksPanel == null) return;
@@ -125,7 +131,6 @@ public partial class MainWindow : Window
         }
     }
 
-    
     private void OnActivateMicClick(object sender, RoutedEventArgs e)
     {
         if (_isMicActive)
@@ -138,7 +143,6 @@ public partial class MainWindow : Window
         }
     }
 
-    
     private void ActivateMic()
     {
         if (MicDeviceComboBox.Items.Count == 0)
@@ -162,7 +166,6 @@ public partial class MainWindow : Window
             ActivateMicBtn.Style = (Style)FindResource("SecondaryPillBtn");
 
             ToggleFakeMuteBtn.IsEnabled = true;
-            ToggleFakeMuteBtn.IsEnabled = true;
 
             ApplyActiveMicMode();
         }
@@ -172,7 +175,6 @@ public partial class MainWindow : Window
         }
     }
 
-    
     private void DeactivateMic()
     {
         _isMicActive = false;
@@ -181,7 +183,6 @@ public partial class MainWindow : Window
         ActivateMicBtn.Content = "Activar micrófono";
         ActivateMicBtn.Style = (Style)FindResource("PrimaryPillBtn");
 
-        ToggleFakeMuteBtn.IsEnabled = false;
         ToggleFakeMuteBtn.IsEnabled = false;
 
         MicBadgeText.Text = "Inactivo";
@@ -197,8 +198,7 @@ public partial class MainWindow : Window
         UpdateVuBlocks(0);
     }
 
-    
-        private void ApplyActiveMicMode()
+    private void ApplyActiveMicMode()
     {
         if (_audioService == null) return;
 
@@ -215,6 +215,8 @@ public partial class MainWindow : Window
         else if (ModeMicChoppyRadio.IsChecked == true)
         {
             _audioService.SetMode(AudioSpoofMode.Choppy);
+            if (ChoppyRateCombo != null && ChoppyRateCombo.SelectedIndex >= 0)
+                _audioService.SetChoppyRate(ChoppyRateCombo.SelectedIndex);
             MicStatusDot.Fill = new SolidColorBrush(MediaColor.FromRgb(0xfb, 0xbc, 0x04));
             MicStatusNotice.Text = "Voz entrecortada activa";
             TileMicStatusText.Text = "Voz entrecortada";
@@ -225,8 +227,10 @@ public partial class MainWindow : Window
         else if (ModeMicEchoRadio.IsChecked == true)
         {
             _audioService.SetMode(AudioSpoofMode.Echo);
+            if (EchoDelayCombo != null && EchoDelayCombo.SelectedIndex >= 0)
+                _audioService.SetEchoMode(EchoDelayCombo.SelectedIndex);
             MicStatusDot.Fill = new SolidColorBrush(MediaColor.FromRgb(0xfb, 0xbc, 0x04));
-            MicStatusNotice.Text = "Eco y retorno doble activos";
+            MicStatusNotice.Text = "Eco doble y reverberación activos";
             TileMicStatusText.Text = "Eco doble activo";
             TileMicStatusText.Foreground = new SolidColorBrush(MediaColor.FromRgb(0xfb, 0xbc, 0x04));
             ToggleFakeMuteBtn.Content = "Silencio falso";
@@ -235,6 +239,8 @@ public partial class MainWindow : Window
         else if (ModeMicStaticRadio.IsChecked == true)
         {
             _audioService.SetMode(AudioSpoofMode.StaticNoise);
+            if (StaticTypeCombo != null && StaticTypeCombo.SelectedIndex >= 0)
+                _audioService.SetStaticType(StaticTypeCombo.SelectedIndex);
             MicStatusDot.Fill = new SolidColorBrush(MediaColor.FromRgb(0xfb, 0xbc, 0x04));
             MicStatusNotice.Text = "Ruido de estática activo";
             TileMicStatusText.Text = "Estática activa";
@@ -264,61 +270,52 @@ public partial class MainWindow : Window
         }
     }
 
-    
     private void OnMicNormalOptionClick(object sender, MouseButtonEventArgs e)
     {
         ModeMicNormalRadio.IsChecked = true;
         ApplyActiveMicMode();
     }
 
-    
     private void OnMicFakeMuteOptionClick(object sender, MouseButtonEventArgs e)
     {
         ModeMicFakeMuteRadio.IsChecked = true;
         ApplyActiveMicMode();
     }
 
-    
     private void OnMicChoppyOptionClick(object sender, MouseButtonEventArgs e)
     {
         ModeMicChoppyRadio.IsChecked = true;
         ApplyActiveMicMode();
     }
 
-    
     private void OnMicEchoOptionClick(object sender, MouseButtonEventArgs e)
     {
         ModeMicEchoRadio.IsChecked = true;
         ApplyActiveMicMode();
     }
 
-    
     private void OnMicStaticOptionClick(object sender, MouseButtonEventArgs e)
     {
         ModeMicStaticRadio.IsChecked = true;
         ApplyActiveMicMode();
     }
 
-    
     private void OnMicSaturationOptionClick(object sender, MouseButtonEventArgs e)
     {
         ModeMicSaturationRadio.IsChecked = true;
         ApplyActiveMicMode();
     }
 
-    
     private void OnMicModeRadioClicked(object sender, RoutedEventArgs e)
     {
         ApplyActiveMicMode();
     }
 
-    
     private void OnToggleFakeMuteClick(object sender, RoutedEventArgs e)
     {
         ToggleMicFakeMute();
     }
 
-    
     private void ToggleMicFakeMute()
     {
         if (!_isMicActive)
@@ -341,13 +338,11 @@ public partial class MainWindow : Window
         }
     }
 
-    
     private void OnMonitorAudioChecked(object sender, RoutedEventArgs e)
     {
         _audioService?.SetMonitoring(MonitorAudioCheckBox.IsChecked == true);
     }
 
-    
     private void OnMicSaturationSliderChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
         if (SaturationLevelText == null) return;
@@ -357,19 +352,46 @@ public partial class MainWindow : Window
         _audioService?.SetSaturationGain(val);
     }
 
-    
+    private void OnMicMasterVolumeChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (MicMasterVolumeText == null) return;
+        int val = (int)e.NewValue;
+        MicMasterVolumeText.Text = $"{val}%";
+        _audioService?.SetMasterVolume(val / 100f);
+    }
+
+    private void OnEchoDelayChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_audioService == null || EchoDelayCombo == null) return;
+        _audioService.SetEchoMode(EchoDelayCombo.SelectedIndex);
+    }
+
+    private void OnStaticTypeChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_audioService == null || StaticTypeCombo == null) return;
+        _audioService.SetStaticType(StaticTypeCombo.SelectedIndex);
+    }
+
+    private void OnChoppyRateChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_audioService == null || ChoppyRateCombo == null) return;
+        _audioService.SetChoppyRate(ChoppyRateCombo.SelectedIndex);
+    }
+
     private void SetupSpectrumBars()
     {
         if (InSpectrumGrid == null || OutSpectrumGrid == null) return;
         InSpectrumGrid.Children.Clear();
         OutSpectrumGrid.Children.Clear();
-        for (int i = 0; i < 16; i++)
+
+        for (int i = 0; i < 12; i++)
         {
             var bIn = new Border
             {
-                Background = AccentBlueBrush,
-                CornerRadius = new CornerRadius(1.5),
-                Margin = new Thickness(1.5, 0, 1.5, 0),
+                Background = new SolidColorBrush(MediaColor.FromRgb(0x5b, 0x8d, 0xf7)),
+                CornerRadius = new CornerRadius(2.5, 2.5, 0, 0),
+                Width = 9.5,
+                Margin = new Thickness(2, 0, 2, 0),
                 Height = 3,
                 VerticalAlignment = VerticalAlignment.Bottom
             };
@@ -378,9 +400,10 @@ public partial class MainWindow : Window
 
             var bOut = new Border
             {
-                Background = AccentBlueBrush,
-                CornerRadius = new CornerRadius(1.5),
-                Margin = new Thickness(1.5, 0, 1.5, 0),
+                Background = new SolidColorBrush(MediaColor.FromRgb(0x5b, 0x8d, 0xf7)),
+                CornerRadius = new CornerRadius(2.5, 2.5, 0, 0),
+                Width = 9.5,
+                Margin = new Thickness(2, 0, 2, 0),
                 Height = 3,
                 VerticalAlignment = VerticalAlignment.Bottom
             };
@@ -388,18 +411,17 @@ public partial class MainWindow : Window
             OutSpectrumGrid.Children.Add(bOut);
         }
 
-        _spectrumTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
+        _spectrumTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(30) };
         _spectrumTimer.Tick += OnSpectrumTimerTick;
         _spectrumTimer.Start();
     }
 
-    
     private void OnSpectrumTimerTick(object? sender, EventArgs e)
     {
         _spectrumTick++;
         if (!_isMicActive)
         {
-            for (int i = 0; i < 16; i++)
+            for (int i = 0; i < 12; i++)
             {
                 _inBars[i].Height = Math.Max(2, _inBars[i].Height * 0.85);
                 _outBars[i].Height = Math.Max(2, _outBars[i].Height * 0.85);
@@ -407,15 +429,17 @@ public partial class MainWindow : Window
             return;
         }
 
-        float p = Math.Clamp(_currentMicPeak, 0.05f, 1f);
-        double maxH = 58.0;
+        float p = Math.Clamp(_currentMicPeak, 0.04f, 1f);
+        float masterVol = _audioService?.MasterVolume ?? 1f;
+        double maxH = 54.0;
 
-        for (int i = 0; i < 16; i++)
+        for (int i = 0; i < 12; i++)
         {
-            double freqCurve = Math.Sin((i + 1) * Math.PI / 18.0);
-            double noise = ((Math.Sin(_spectrumTick * 0.3 + i * 1.2) + 1.0) / 2.0) * 0.35;
-            double targetIn = Math.Clamp((freqCurve * p * 0.8 + noise * p) * maxH, 3.0, maxH);
-            _inBars[i].Height = _inBars[i].Height * 0.5 + targetIn * 0.5;
+            // Human voice formant energy distribution with subtle dynamic organic jitter
+            double jitter = Math.Sin(_spectrumTick * 0.42 + i * 1.35) * 0.12 + Math.Cos(_spectrumTick * 0.28 + i * 0.95) * 0.08;
+            double bandEnvelope = Math.Clamp(VocalFrequencies[i] * p + jitter * p, 0.05, 1.0);
+            double targetIn = Math.Clamp(bandEnvelope * maxH, 3.0, maxH);
+            _inBars[i].Height = _inBars[i].Height * 0.45 + targetIn * 0.55;
 
             double targetOut = targetIn;
             if (ModeMicFakeMuteRadio.IsChecked == true)
@@ -425,20 +449,50 @@ public partial class MainWindow : Window
             }
             else if (ModeMicChoppyRadio.IsChecked == true)
             {
-                bool isChopped = (_spectrumTick % 20) < 10;
+                int cycleLength = ChoppyRateCombo.SelectedIndex == 2 ? 16 : (ChoppyRateCombo.SelectedIndex == 0 ? 30 : 22);
+                int muteLength = (int)(cycleLength * (ChoppyRateCombo.SelectedIndex == 2 ? 0.75 : (ChoppyRateCombo.SelectedIndex == 0 ? 0.25 : 0.50)));
+                bool isChopped = (_spectrumTick % cycleLength) < muteLength;
                 targetOut = isChopped ? 2.0 : targetIn;
-                MicEffectBadge.Text = "CHOPPY / LAG";
+                MicEffectBadge.Text = "ENTRECORTADO";
             }
             else if (ModeMicEchoRadio.IsChecked == true)
             {
-                targetOut = Math.Clamp(targetIn * 1.2, 4.0, maxH);
-                MicEffectBadge.Text = "ECO DOBLE";
+                if (EchoDelayCombo.SelectedIndex == 0)
+                {
+                    // Eco doble y largo (pulsos y cola amplia)
+                    double echoBounce = (Math.Sin(_spectrumTick * 0.22) > 0.35) ? 1.4 : 0.7;
+                    targetOut = Math.Clamp(targetIn * echoBounce, 4.0, maxH);
+                    MicEffectBadge.Text = "ECO DOBLE LARGO";
+                }
+                else
+                {
+                    targetOut = Math.Clamp(targetIn * 1.25, 4.0, maxH);
+                    MicEffectBadge.Text = "ECO MÚLTIPLE";
+                }
             }
             else if (ModeMicStaticRadio.IsChecked == true)
             {
-                double staticNoise = ((Math.Sin(_spectrumTick * 1.7 + i * 2.3) + 1.0) / 2.0) * 0.65;
-                targetOut = Math.Clamp((targetIn * 0.4 + staticNoise) * maxH, 6.0, maxH);
-                MicEffectBadge.Text = "ESTÁTICA";
+                if (StaticTypeCombo.SelectedIndex == 0)
+                {
+                    // Zumbido eléctrico 50-60 Hz: picos en frecuencias bajas (bandas 0 y 1)
+                    double humEnergy = i <= 1 ? (0.85 + Math.Sin(_spectrumTick * 0.8) * 0.1) : 0.15;
+                    targetOut = Math.Clamp((targetIn * 0.35 + humEnergy) * maxH, 5.0, maxH);
+                    MicEffectBadge.Text = "ZUMBIDO 50-60HZ";
+                }
+                else if (StaticTypeCombo.SelectedIndex == 1)
+                {
+                    // Ruido blanco continuo: uniforme en todas las 12 bandas
+                    double whiteEnergy = 0.55 + Math.Sin(_spectrumTick * 1.5 + i * 2.1) * 0.2;
+                    targetOut = Math.Clamp((targetIn * 0.30 + whiteEnergy) * maxH, 6.0, maxH);
+                    MicEffectBadge.Text = "RUIDO BLANCO";
+                }
+                else
+                {
+                    // Estática sibilante de cable: picos en agudos (bandas 7 a 11)
+                    double hissEnergy = i >= 7 ? (0.75 + Math.Sin(_spectrumTick * 2.3 + i * 1.8) * 0.25) : 0.18;
+                    targetOut = Math.Clamp((targetIn * 0.35 + hissEnergy) * maxH, 5.0, maxH);
+                    MicEffectBadge.Text = "ESTÁTICA CABLE";
+                }
             }
             else if (ModeMicSaturationRadio.IsChecked == true)
             {
@@ -450,11 +504,11 @@ public partial class MainWindow : Window
                 MicEffectBadge.Text = "EN VIVO";
             }
 
-            _outBars[i].Height = _outBars[i].Height * 0.5 + targetOut * 0.5;
+            // Aplicar el volumen general de salida a la visualización de salida
+            double finalOut = targetOut * masterVol;
+            _outBars[i].Height = _outBars[i].Height * 0.45 + finalOut * 0.55;
         }
     }
 
-    
     private void OnChoppyOptionClick(object? sender, RoutedEventArgs? e) => OnMicChoppyOptionClick(sender!, null!);
-
 }

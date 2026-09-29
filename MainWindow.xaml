@@ -1907,6 +1907,7 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/> <!-- Header -->
                                 <RowDefinition Height="Auto"/> <!-- Segmented VU Meter -->
+                                <RowDefinition Height="Auto"/> <!-- Master Output Volume -->
                                 <RowDefinition Height="*"/>    <!-- Original Spectrum -->
                                 <RowDefinition Height="*"/>    <!-- Processed Spectrum -->
                                 <RowDefinition Height="Auto"/> <!-- Action Buttons -->
@@ -1927,7 +1928,7 @@
 
                             <!-- Segmented Chunky Block VU Meter (No overlapping percentage) -->
                             <Border Grid.Row="1" Background="#f8fafc" BorderBrush="#e5e5ea" BorderThickness="1"
-                                    CornerRadius="6" Padding="10,8" Margin="0,0,0,12">
+                                    CornerRadius="6" Padding="10,8" Margin="0,0,0,10">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -1970,8 +1971,32 @@
                                 </Grid>
                             </Border>
 
+                            <!-- Master Output Volume Slider -->
+                            <Border Grid.Row="2" Background="#f8fafc" BorderBrush="#e5e5ea" BorderThickness="1"
+                                    CornerRadius="6" Padding="12,7" Margin="0,0,0,10">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
+                                        <Path Data="M11 5L6 9H2v6h4l5 4V5z M19.07 4.93a10 10 0 0 1 0 14.14 M15.54 8.46a5 5 0 0 1 0 7.07"
+                                              Stroke="{StaticResource AccentBlueBrush}" StrokeThickness="1.5"
+                                              Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <TextBlock Text="Volumen de salida:" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <Slider x:Name="MicMasterVolumeSlider" Grid.Column="1" Minimum="0" Maximum="100" Value="100"
+                                            Style="{StaticResource CleanSliderStyle}" VerticalAlignment="Center"
+                                            ValueChanged="OnMicMasterVolumeChanged"/>
+                                    <TextBlock x:Name="MicMasterVolumeText" Grid.Column="2" Text="100%" FontSize="10.5" FontWeight="SemiBold"
+                                               Foreground="{StaticResource AccentBlueBrush}" VerticalAlignment="Center" Margin="10,0,0,0" Width="36" TextAlignment="Right"/>
+                                </Grid>
+                            </Border>
+
                             <!-- In Spectrum Grid with Audio Analyzer Background Grid -->
-                            <Border Grid.Row="2" Background="{StaticResource SubCardBgBrush}" BorderBrush="{StaticResource SubCardBorderBrush}"
+                            <Border Grid.Row="3" Background="{StaticResource SubCardBgBrush}" BorderBrush="{StaticResource SubCardBorderBrush}"
                                     BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,0,10">
                                 <Grid>
                                     <Grid.RowDefinitions>
@@ -1986,7 +2011,7 @@
                                     </StackPanel>
 
                                     <!-- Audio Analyzer Stage -->
-                                    <Grid Grid.Row="1" MinHeight="72">
+                                    <Grid Grid.Row="1" MinHeight="68">
                                         <!-- Audio Grid Lines (Malla de audio: dB & Frecuencia) -->
                                         <Grid Opacity="0.45" IsHitTestVisible="False">
                                             <Grid.RowDefinitions>
@@ -2025,14 +2050,14 @@
                                             <TextBlock Grid.Column="4" Text="20kHz" FontSize="8" Foreground="#86868b" HorizontalAlignment="Right"/>
                                         </Grid>
 
-                                        <!-- Animated Responsive Bars -->
-                                        <Grid x:Name="InSpectrumGrid" VerticalAlignment="Bottom" Height="68" Margin="24,0,4,12"/>
+                                        <!-- Animated Responsive Bars (Multi-band Equalizer) -->
+                                        <StackPanel x:Name="InSpectrumGrid" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom" Height="58" Margin="0,0,0,12"/>
                                     </Grid>
                                 </Grid>
                             </Border>
 
                             <!-- Out Spectrum Grid with Audio Analyzer Background Grid -->
-                            <Border Grid.Row="3" Background="{StaticResource SubCardBgBrush}" BorderBrush="{StaticResource SubCardBorderBrush}"
+                            <Border Grid.Row="4" Background="{StaticResource SubCardBgBrush}" BorderBrush="{StaticResource SubCardBorderBrush}"
                                     BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,0,10">
                                 <Grid>
                                     <Grid.RowDefinitions>
@@ -2049,7 +2074,7 @@
                                     </StackPanel>
 
                                     <!-- Audio Analyzer Stage -->
-                                    <Grid Grid.Row="1" MinHeight="72">
+                                    <Grid Grid.Row="1" MinHeight="68">
                                         <!-- Audio Grid Lines (Malla de audio: dB & Frecuencia) -->
                                         <Grid Opacity="0.45" IsHitTestVisible="False">
                                             <Grid.RowDefinitions>
@@ -2088,14 +2113,14 @@
                                             <TextBlock Grid.Column="4" Text="20kHz" FontSize="8" Foreground="#86868b" HorizontalAlignment="Right"/>
                                         </Grid>
 
-                                        <!-- Animated Responsive Bars -->
-                                        <Grid x:Name="OutSpectrumGrid" VerticalAlignment="Bottom" Height="68" Margin="24,0,4,12"/>
+                                        <!-- Animated Responsive Bars (Multi-band Equalizer) -->
+                                        <StackPanel x:Name="OutSpectrumGrid" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom" Height="58" Margin="0,0,0,12"/>
                                     </Grid>
                                 </Grid>
                             </Border>
 
                             <!-- Buttons -->
-                            <Grid Grid.Row="4" Margin="0,0,0,8">
+                            <Grid Grid.Row="5" Margin="0,0,0,8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
@@ -2108,7 +2133,7 @@
                             </Grid>
 
                             <!-- Hardware Status Bar -->
-                            <Border Grid.Row="5" Background="#f8fafc" BorderBrush="#e2e8f0" BorderThickness="1"
+                            <Border Grid.Row="6" Background="#f8fafc" BorderBrush="#e2e8f0" BorderThickness="1"
                                     CornerRadius="6" Padding="12,5">
                                 <Grid>
                                     <TextBlock Text="Muestreo: 48,000 Hz  •  Latencia: &lt; 5 ms  •  24-bit Digital"
@@ -2199,7 +2224,7 @@
                                                FontSize="10.5" Foreground="{StaticResource TextMutedBrush}" Margin="26,3,0,4"/>
                                     <StackPanel Orientation="Horizontal" Margin="26,0,0,0">
                                         <TextBlock Text="Descarte de paquetes:" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                        <ComboBox x:Name="ChoppyRateCombo" Width="158" Height="24">
+                                        <ComboBox x:Name="ChoppyRateCombo" Width="175" Height="24" SelectionChanged="OnChoppyRateChanged">
                                             <ComboBoxItem Content="25% • Leve fluctuación"/>
                                             <ComboBoxItem Content="50% • Pérdida media" IsSelected="True"/>
                                             <ComboBoxItem Content="75% • Microcortes graves"/>
@@ -2222,11 +2247,12 @@
                                     <TextBlock Text="Inyecta retorno acústico simulando eco en altavoces o sala vacía."
                                                FontSize="10.5" Foreground="{StaticResource TextMutedBrush}" Margin="26,3,0,4" TextWrapping="Wrap"/>
                                     <StackPanel Orientation="Horizontal" Margin="26,0,0,0">
-                                        <TextBlock Text="Retardo acústico:" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                        <ComboBox x:Name="EchoDelayCombo" Width="155" Height="24">
-                                            <ComboBoxItem Content="120 ms • Sala corta"/>
-                                            <ComboBoxItem Content="180 ms • Oficina vacía" IsSelected="True"/>
-                                            <ComboBoxItem Content="260 ms • Retorno hueco"/>
+                                        <TextBlock Text="Tipo y retardo:" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <ComboBox x:Name="EchoDelayCombo" Width="220" Height="24" SelectionChanged="OnEchoDelayChanged">
+                                            <ComboBoxItem Content="Eco doble y largo • Sala amplia" IsSelected="True"/>
+                                            <ComboBoxItem Content="Eco múltiple 120 ms • Sala corta"/>
+                                            <ComboBoxItem Content="Eco múltiple 180 ms • Oficina vacía"/>
+                                            <ComboBoxItem Content="Eco múltiple 260 ms • Retorno hueco"/>
                                         </ComboBox>
                                     </StackPanel>
                                 </StackPanel>
@@ -2247,7 +2273,7 @@
                                                FontSize="10.5" Foreground="{StaticResource TextMutedBrush}" Margin="26,3,0,4" TextWrapping="Wrap"/>
                                     <StackPanel Orientation="Horizontal" Margin="26,0,0,0">
                                         <TextBlock Text="Tipo de señal:" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                        <ComboBox x:Name="StaticTypeCombo" Width="190" Height="24">
+                                        <ComboBox x:Name="StaticTypeCombo" Width="210" Height="24" SelectionChanged="OnStaticTypeChanged">
                                             <ComboBoxItem Content="Zumbido eléctrico 50-60 Hz" IsSelected="True"/>
                                             <ComboBoxItem Content="Ruido blanco continuo"/>
                                             <ComboBoxItem Content="Estática sibilante de cable"/>
