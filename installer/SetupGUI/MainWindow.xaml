@@ -79,7 +79,10 @@
                 </Grid.ColumnDefinitions>
                 <Image Grid.Column="0" Source="Assets/icon.png" Width="44" Height="44" Margin="0,0,14,0" RenderOptions.BitmapScalingMode="HighQuality"/>
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                    <TextBlock Text="CastDecoy Setup" FontSize="18" FontWeight="Bold" Foreground="#0f172a"/>
+                    <TextBlock VerticalAlignment="Center"
+                               TextOptions.TextFormattingMode="Display"
+                               TextOptions.TextRenderingMode="ClearType"
+                               Margin="0,0,0,2"><Run Text="Cast" FontWeight="Bold" FontSize="21" Foreground="#6b6d72" FontFamily="pack://application:,,,/Assets/Kanit-Bold.ttf#Kanit"/><Run Text="Decoy" FontWeight="Bold" FontSize="21" Foreground="#5b8df7" FontFamily="pack://application:,,,/Assets/Kanit-Bold.ttf#Kanit"/><Run Text=" Setup" FontWeight="SemiBold" FontSize="16" Foreground="#64748b" FontFamily="Segoe UI"/></TextBlock>
                     <TextBlock Text="Aislamiento de Pantalla y Simulación de Señal para Windows" FontSize="11.5" Foreground="#64748b"/>
                 </StackPanel>
             </Grid>
