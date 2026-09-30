@@ -29,6 +29,8 @@ public partial class MainWindow : Window
     private Window? _decoyCursorWindow;
     private Window? _followerCursorWindow;
     private IntPtr _followerHwnd = IntPtr.Zero;
+    private Window? _jitterCursorWindow;
+    private IntPtr _jitterHwnd = IntPtr.Zero;
     private NativeMethods.LowLevelProc? _mouseHookProc;
     private IntPtr _mouseHookHandle = IntPtr.Zero;
     private DispatcherTimer? _followerTimer;
@@ -103,32 +105,21 @@ public partial class MainWindow : Window
     private DispatcherTimer? _autoJitterTimer;
     private int _autoJitterIntervalSeconds = 30;
 
-    
-    private void ToggleCursorDecoy()
+    private void StartFollowerCursor()
     {
-        _isDecoyActive = !_isDecoyActive;
-        if (_isDecoyActive)
+        if (_followerCursorWindow == null)
         {
-            NativeMethods.GetCursorPos(out var pt);
+            _followerCursorWindow = CreateCursorWindow(excludeFromCapture: true);
+        }
+        _followerCursorWindow.Show();
+        _followerHwnd = new WindowInteropHelper(_followerCursorWindow).EnsureHandle();
 
-            if (_decoyCursorWindow == null)
-            {
-                _decoyCursorWindow = CreateCursorWindow(false);
-            }
-            _decoyCursorWindow.Show();
-            var decoyHwnd = new WindowInteropHelper(_decoyCursorWindow).EnsureHandle();
-            NativeMethods.SetWindowPos(decoyHwnd, NativeMethods.HWND_TOPMOST, pt.X, pt.Y, 0, 0,
-                NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_SHOWWINDOW);
+        NativeMethods.GetCursorPos(out var pt);
+        NativeMethods.SetWindowPos(_followerHwnd, NativeMethods.HWND_TOPMOST, pt.X, pt.Y, 0, 0,
+            NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_SHOWWINDOW);
 
-            if (_followerCursorWindow == null)
-            {
-                _followerCursorWindow = CreateCursorWindow(true);
-            }
-            _followerCursorWindow.Show();
-            _followerHwnd = new WindowInteropHelper(_followerCursorWindow).EnsureHandle();
-            NativeMethods.SetWindowPos(_followerHwnd, NativeMethods.HWND_TOPMOST, pt.X, pt.Y, 0, 0,
-                NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_SHOWWINDOW);
-
+        if (_mouseHookHandle == IntPtr.Zero)
+        {
             try
             {
                 _mouseHookProc = MouseHookCallback;
@@ -136,60 +127,27 @@ public partial class MainWindow : Window
                 _mouseHookHandle = NativeMethods.SetWindowsHookEx(NativeMethods.WH_MOUSE_LL, _mouseHookProc, moduleHandle, 0);
             }
             catch { }
-
-            if (_followerTimer == null)
-            {
-                _followerTimer = new DispatcherTimer(DispatcherPriority.Render)
-                {
-                    Interval = TimeSpan.FromMilliseconds(10)
-                };
-                _followerTimer.Tick += (_, _) =>
-                {
-                    if (_isDecoyActive && _followerHwnd != IntPtr.Zero)
-                    {
-                        NativeMethods.GetCursorPos(out var curPt);
-                        NativeMethods.SetWindowPos(_followerHwnd, NativeMethods.HWND_TOPMOST, curPt.X, curPt.Y, 0, 0,
-                            NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_NOSIZE);
-                    }
-                };
-            }
-            _followerTimer.Start();
-
-            try
-            {
-                uint[] cursorIds = { NativeMethods.OCR_NORMAL, NativeMethods.OCR_IBEAM, NativeMethods.OCR_HAND };
-                foreach (var id in cursorIds)
-                {
-                    byte[] andPlane = new byte[128];
-                    for (int i = 0; i < andPlane.Length; i++) andPlane[i] = 0xFF;
-                    byte[] xorPlane = new byte[128];
-                    IntPtr blank = NativeMethods.CreateCursor(IntPtr.Zero, 0, 0, 32, 32, andPlane, xorPlane);
-                    if (blank != IntPtr.Zero)
-                    {
-                        NativeMethods.SetSystemCursor(blank, id);
-                    }
-                }
-            }
-            catch { }
-
-            DecoyStatusText.Text = $"Réplica congelada en ({pt.X}, {pt.Y}) visible en captura.";
-            DecoyStatusText.Foreground = AccentBlueBrush;
-            DecoyToggleBtn.Content = "Desactivar réplica";
-            TileFreezeStatusText.Text = "Réplica activa";
-            TileFreezeStatusText.Foreground = AccentBlueBrush;
         }
-        else
+
+        if (_followerTimer == null)
         {
-            RestoreRealCursor();
-            DecoyStatusText.Text = "Réplica inactiva: El cursor se graba normalmente.";
-            DecoyStatusText.Foreground = InactiveTextBrush;
-            DecoyToggleBtn.Content = "Congelar cursor";
-            TileFreezeStatusText.Text = "Réplica inactiva";
-            TileFreezeStatusText.Foreground = InactiveTextBrush;
+            _followerTimer = new DispatcherTimer(DispatcherPriority.Render)
+            {
+                Interval = TimeSpan.FromMilliseconds(10)
+            };
+            _followerTimer.Tick += (_, _) =>
+            {
+                if (_followerHwnd != IntPtr.Zero && (_isDecoyActive || _isMousePlaying || _isMouseLagActive || _isAutoJitterActive || _isOrganicDriftActive))
+                {
+                    NativeMethods.GetCursorPos(out var curPt);
+                    NativeMethods.SetWindowPos(_followerHwnd, NativeMethods.HWND_TOPMOST, curPt.X, curPt.Y, 0, 0,
+                        NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_NOSIZE);
+                }
+            };
         }
+        _followerTimer.Start();
     }
 
-    
     private IntPtr MouseHookCallback(int nCode, IntPtr wParam, IntPtr lParam)
     {
         if (nCode >= 0 && wParam == (IntPtr)NativeMethods.WM_MOUSEMOVE)
@@ -197,7 +155,7 @@ public partial class MainWindow : Window
             try
             {
                 var hookStruct = Marshal.PtrToStructure<NativeMethods.MSLLHOOKSTRUCT>(lParam);
-                if (_followerHwnd != IntPtr.Zero && _isDecoyActive)
+                if (_followerHwnd != IntPtr.Zero && (_isDecoyActive || _isMousePlaying || _isMouseLagActive || _isAutoJitterActive || _isOrganicDriftActive))
                 {
                     NativeMethods.SetWindowPos(_followerHwnd, NativeMethods.HWND_TOPMOST, hookStruct.pt.X, hookStruct.pt.Y, 0, 0,
                         NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_NOSIZE);
@@ -208,7 +166,6 @@ public partial class MainWindow : Window
         return NativeMethods.CallNextHookEx(_mouseHookHandle, nCode, wParam, lParam);
     }
 
-    
     private void RestoreRealCursor()
     {
         try
@@ -228,7 +185,488 @@ public partial class MainWindow : Window
         _followerCursorWindow?.Hide();
         _cloneCursorWindow?.Hide();
         _lagCursorWindow?.Hide();
+        _jitterCursorWindow?.Hide();
         _driftCursorWindow?.Hide();
+    }
+
+    private void StopAllMouseDecoys(bool keepFollower = false)
+    {
+        _isDecoyActive = false;
+        _decoyCursorWindow?.Hide();
+
+        _isMousePlaying = false;
+        _mousePlayTimer?.Stop();
+        _mousePlayStopwatch.Stop();
+        _cloneCursorWindow?.Hide();
+
+        _isMouseLagActive = false;
+        _mouseLagTimer?.Stop();
+        _mouseLagStopwatch.Stop();
+        _lagCursorWindow?.Hide();
+
+        _isAutoJitterActive = false;
+        _autoJitterTimer?.Stop();
+        _jitterCursorWindow?.Hide();
+
+        _isOrganicDriftActive = false;
+        _driftTimer?.Stop();
+        _driftStopwatch.Stop();
+        _driftCursorWindow?.Hide();
+
+        if (DecoyToggleBtn != null)
+        {
+            DecoyToggleBtn.Content = "Congelar";
+            DecoyToggleBtn.Style = (Style)FindResource("SecondaryPillBtn");
+            DecoyStatusText.Text = "Modo: Pausa de cursor";
+            DecoyStatusText.Foreground = InactiveTextBrush;
+        }
+        if (MousePlayBtn != null)
+        {
+            MousePlayBtn.Content = "Reproducir";
+            MousePlayBtn.Style = (Style)FindResource("SecondaryPillBtn");
+            MouseRecordStatusText.Text = "Listo para reproducir";
+        }
+        if (AutoJitterToggleBtn != null)
+        {
+            AutoJitterToggleBtn.Content = "Iniciar";
+            AutoJitterToggleBtn.Style = (Style)FindResource("SecondaryPillBtn");
+            AutoJitterStatusText.Text = "Sin reposo";
+            AutoJitterStatusText.Foreground = InactiveTextBrush;
+        }
+        if (MouseLagToggleBtn != null)
+        {
+            MouseLagToggleBtn.Content = "Iniciar";
+            MouseLagToggleBtn.Style = (Style)FindResource("SecondaryPillBtn");
+            MouseLagStatusText.Text = "Sin retraso";
+            MouseLagStatusText.Foreground = InactiveTextBrush;
+        }
+        if (OrganicDriftToggleBtn != null)
+        {
+            OrganicDriftToggleBtn.Content = "Iniciar";
+            OrganicDriftToggleBtn.Style = (Style)FindResource("SecondaryPillBtn");
+            OrganicDriftStatusText.Text = "Deriva inactiva";
+            OrganicDriftStatusText.Foreground = InactiveTextBrush;
+        }
+
+        UpdateMouseLagVisuals();
+
+        if (!keepFollower)
+        {
+            RestoreRealCursor();
+        }
+    }
+
+    private void SetMouseLiveMode()
+    {
+        StopAllMouseDecoys(keepFollower: false);
+        if (ModeMouseLiveRadio != null) ModeMouseLiveRadio.IsChecked = true;
+        if (TileFreezeStatusText != null)
+        {
+            TileFreezeStatusText.Text = "Réplica inactiva";
+            TileFreezeStatusText.Foreground = InactiveTextBrush;
+        }
+        if (MouseClonePosText != null) MouseClonePosText.Text = "En reposo";
+    }
+
+    private void SetMouseFreezeMode()
+    {
+        StopAllMouseDecoys(keepFollower: true);
+        if (ModeMouseFreezeRadio != null) ModeMouseFreezeRadio.IsChecked = true;
+
+        NativeMethods.GetCursorPos(out var pt);
+        if (_decoyCursorWindow == null)
+        {
+            _decoyCursorWindow = CreateCursorWindow(false);
+        }
+        _decoyCursorWindow.Show();
+        var decoyHwnd = new WindowInteropHelper(_decoyCursorWindow).EnsureHandle();
+        NativeMethods.SetWindowPos(decoyHwnd, NativeMethods.HWND_TOPMOST, pt.X, pt.Y, 0, 0,
+            NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_SHOWWINDOW);
+
+        _isDecoyActive = true;
+        HideSystemCursor();
+        StartFollowerCursor();
+
+        DecoyStatusText.Text = $"Réplica fija en ({pt.X}, {pt.Y}) visible en captura.";
+        DecoyStatusText.Foreground = AccentBlueBrush;
+        DecoyToggleBtn.Content = "Desactivar";
+        DecoyToggleBtn.Style = (Style)FindResource("PrimaryPillBtn");
+        TileFreezeStatusText.Text = "Réplica activa";
+        TileFreezeStatusText.Foreground = AccentBlueBrush;
+    }
+
+    private void SetMouseTrackMode()
+    {
+        StopAllMouseDecoys(keepFollower: true);
+        if (ModeMouseTrackRadio != null) ModeMouseTrackRadio.IsChecked = true;
+
+        lock (_mouseTrackLock)
+        {
+            if (_recordedMouseTrack.Count < 2)
+            {
+                LoadPresetMouseMovement(1);
+            }
+        }
+
+        _isMousePlaying = true;
+        _mousePlayStopwatch.Restart();
+
+        if (_cloneCursorWindow == null)
+        {
+            _cloneCursorWindow = CreateCursorWindow(false);
+        }
+        _cloneCursorWindow.Show();
+        _cloneHwnd = new WindowInteropHelper(_cloneCursorWindow).EnsureHandle();
+
+        HideSystemCursor();
+        StartFollowerCursor();
+
+        long totalDuration;
+        lock (_mouseTrackLock)
+        {
+            totalDuration = _recordedMouseTrack[^1].ElapsedMs;
+            if (totalDuration <= 0) totalDuration = 1000;
+        }
+
+        _mousePlayTimer?.Stop();
+        _mousePlayTimer = new DispatcherTimer(DispatcherPriority.Render)
+        {
+            Interval = TimeSpan.FromMilliseconds(16)
+        };
+        _mousePlayTimer.Tick += (_, _) =>
+        {
+            if (!_isMousePlaying) return;
+
+            double speed = _mousePlaySpeed > 0 ? _mousePlaySpeed : 1.0;
+            long elapsed = (long)(_mousePlayStopwatch.ElapsedMilliseconds * speed) % totalDuration;
+            MousePoint currentPt = GetInterpolatedPoint(elapsed);
+
+            if (_cloneHwnd != IntPtr.Zero)
+            {
+                NativeMethods.SetWindowPos(_cloneHwnd, NativeMethods.HWND_TOPMOST,
+                    currentPt.X, currentPt.Y, 0, 0,
+                    NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_SHOWWINDOW);
+            }
+
+            if (MouseClonePosText != null) MouseClonePosText.Text = $"({currentPt.X}, {currentPt.Y})";
+            UpdateMousepadVisual(currentPt.X, currentPt.Y, currentPt.IsClick);
+        };
+        _mousePlayTimer.Start();
+
+        MousePlayBtn.Content = "Detener clon";
+        MousePlayBtn.Style = (Style)FindResource("PrimaryPillBtn");
+        MouseRecordStatusText.Text = "Clon activo en bucle";
+    }
+
+    private void SetMouseJitterMode()
+    {
+        StopAllMouseDecoys(keepFollower: true);
+        if (ModeMouseJitterRadio != null) ModeMouseJitterRadio.IsChecked = true;
+
+        _isAutoJitterActive = true;
+        NativeMethods.GetCursorPos(out var pt);
+
+        if (_jitterCursorWindow == null)
+        {
+            _jitterCursorWindow = CreateCursorWindow(false);
+        }
+        _jitterCursorWindow.Show();
+        _jitterHwnd = new WindowInteropHelper(_jitterCursorWindow).EnsureHandle();
+        NativeMethods.SetWindowPos(_jitterHwnd, NativeMethods.HWND_TOPMOST, pt.X, pt.Y, 0, 0,
+            NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_SHOWWINDOW);
+
+        HideSystemCursor();
+        StartFollowerCursor();
+
+        int pulseX = pt.X;
+        int pulseY = pt.Y;
+        int tickCount = 0;
+
+        _autoJitterTimer?.Stop();
+        _autoJitterTimer = new DispatcherTimer();
+        _autoJitterTimer.Tick += (_, _) =>
+        {
+            if (!_isAutoJitterActive) return;
+            try
+            {
+                tickCount++;
+                int shift = (tickCount % 2 == 1) ? 2 : -2;
+                pulseX += shift;
+                if (_jitterHwnd != IntPtr.Zero)
+                {
+                    NativeMethods.SetWindowPos(_jitterHwnd, NativeMethods.HWND_TOPMOST, pulseX, pulseY, 0, 0,
+                        NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_NOSIZE);
+                }
+                NativeMethods.mouse_event(NativeMethods.MOUSEEVENTF_MOVE, 1, 0, 0, UIntPtr.Zero);
+                Thread.Sleep(10);
+                NativeMethods.mouse_event(NativeMethods.MOUSEEVENTF_MOVE, unchecked((uint)-1), 0, 0, UIntPtr.Zero);
+
+                AutoJitterStatusText.Text = $"Activo: Pulso emitido ({DateTime.Now:HH:mm:ss})";
+                AutoJitterStatusText.Foreground = AccentBlueBrush;
+                UpdateMousepadVisual(pulseX, pulseY, true);
+            }
+            catch { }
+        };
+        _autoJitterTimer.Interval = TimeSpan.FromSeconds(_autoJitterIntervalSeconds);
+        _autoJitterTimer.Start();
+
+        AutoJitterToggleBtn.Content = "Detener";
+        AutoJitterToggleBtn.Style = (Style)FindResource("PrimaryPillBtn");
+        AutoJitterStatusText.Text = $"Activo: Pulso cada {_autoJitterIntervalSeconds} s";
+        AutoJitterStatusText.Foreground = AccentBlueBrush;
+    }
+
+    private void SetMouseLagMode()
+    {
+        StopAllMouseDecoys(keepFollower: true);
+        if (ModeMouseLagRadio != null) ModeMouseLagRadio.IsChecked = true;
+
+        _isMouseLagActive = true;
+        if (_lagCursorWindow == null)
+        {
+            _lagCursorWindow = CreateCursorWindow(false);
+        }
+        _lagCursorWindow.Show();
+        _lagHwnd = new WindowInteropHelper(_lagCursorWindow).EnsureHandle();
+
+        HideSystemCursor();
+        StartFollowerCursor();
+
+        lock (_mouseLagHistory)
+        {
+            _mouseLagHistory.Clear();
+        }
+        _mouseLagStopwatch.Restart();
+        _mouseLagDroppedFrames = 0;
+
+        NativeMethods.GetCursorPos(out var curPt);
+        _currentLagTargetX = curPt.X;
+        _currentLagTargetY = curPt.Y;
+
+        _mouseLagTimer?.Stop();
+        _mouseLagTimer = new DispatcherTimer(DispatcherPriority.Render)
+        {
+            Interval = TimeSpan.FromMilliseconds(16)
+        };
+        _mouseLagTimer.Tick += (_, _) =>
+        {
+            if (!_isMouseLagActive) return;
+            NativeMethods.GetCursorPos(out var realPt);
+            long now = _mouseLagStopwatch.ElapsedMilliseconds;
+
+            lock (_mouseLagHistory)
+            {
+                _mouseLagHistory.Add((realPt.X, realPt.Y, now));
+                while (_mouseLagHistory.Count > 0 && (now - _mouseLagHistory[0].TimeMs) > 2000)
+                {
+                    _mouseLagHistory.RemoveAt(0);
+                }
+            }
+
+            long targetTime = now - _mouseLagMs;
+            int targetX = realPt.X;
+            int targetY = realPt.Y;
+
+            lock (_mouseLagHistory)
+            {
+                if (_mouseLagHistory.Count > 0)
+                {
+                    var match = _mouseLagHistory.LastOrDefault(p => p.TimeMs <= targetTime);
+                    if (match.TimeMs != 0)
+                    {
+                        targetX = match.X;
+                        targetY = match.Y;
+                    }
+                    else
+                    {
+                        targetX = _mouseLagHistory[0].X;
+                        targetY = _mouseLagHistory[0].Y;
+                    }
+                }
+            }
+
+            if (_mouseLagMs == 350)
+            {
+                _mouseLagDroppedFrames++;
+                if (_mouseLagDroppedFrames % 6 < 3)
+                {
+                    targetX = _currentLagTargetX;
+                    targetY = _currentLagTargetY;
+                }
+                else
+                {
+                    _currentLagTargetX = targetX;
+                    _currentLagTargetY = targetY;
+                }
+            }
+            else
+            {
+                _currentLagTargetX = targetX;
+                _currentLagTargetY = targetY;
+            }
+
+            if (_lagCursorWindow != null && _lagHwnd != IntPtr.Zero)
+            {
+                NativeMethods.SetWindowPos(_lagHwnd, NativeMethods.HWND_TOPMOST,
+                    _currentLagTargetX, _currentLagTargetY, 0, 0,
+                    NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_SHOWWINDOW);
+            }
+
+            UpdateMousepadVisual(realPt.X, realPt.Y, false);
+        };
+        _mouseLagTimer.Start();
+
+        MouseLagToggleBtn.Content = "Detener réplica";
+        MouseLagToggleBtn.Style = (Style)FindResource("PrimaryPillBtn");
+        MouseLagStatusText.Text = $"Réplica activa ({_mouseLagMs} ms lag)";
+        MouseLagStatusText.Foreground = AccentBlueBrush;
+        UpdateMouseLagVisuals();
+    }
+
+    private void SetMouseDriftMode()
+    {
+        StopAllMouseDecoys(keepFollower: true);
+        if (ModeMouseDriftRadio != null) ModeMouseDriftRadio.IsChecked = true;
+
+        _isOrganicDriftActive = true;
+        NativeMethods.GetCursorPos(out var pt);
+        _driftBaseX = pt.X;
+        _driftBaseY = pt.Y;
+        _currentDriftX = pt.X;
+        _currentDriftY = pt.Y;
+
+        if (_driftCursorWindow == null)
+        {
+            _driftCursorWindow = CreateCursorWindow(false);
+        }
+        _driftCursorWindow.Show();
+        _driftHwnd = new WindowInteropHelper(_driftCursorWindow).EnsureHandle();
+
+        HideSystemCursor();
+        StartFollowerCursor();
+
+        _driftStopwatch.Restart();
+        _driftTimer?.Stop();
+        _driftTimer = new DispatcherTimer(DispatcherPriority.Render)
+        {
+            Interval = TimeSpan.FromMilliseconds(16)
+        };
+        _driftTimer.Tick += (_, _) =>
+        {
+            if (!_isOrganicDriftActive) return;
+
+            double sec = _driftStopwatch.Elapsed.TotalSeconds;
+            int screenW = NativeMethods.GetSystemMetrics(0);
+            int screenH = NativeMethods.GetSystemMetrics(1);
+            if (screenW <= 0) screenW = 1920;
+            if (screenH <= 0) screenH = 1080;
+
+            double dx = 0;
+            double dy = 0;
+
+            if (_driftPattern == "Oscilación biológica")
+            {
+                dx = Math.Sin(sec * 1.6) * 45 + Math.Sin(sec * 3.4) * 18 + Math.Cos(sec * 0.7) * 25;
+                dy = Math.Cos(sec * 1.2) * 35 + Math.Sin(sec * 2.7) * 14 + Math.Sin(sec * 0.5) * 20;
+            }
+            else if (_driftPattern == "Círculos sutiles")
+            {
+                dx = Math.Cos(sec * 0.9) * 60;
+                dy = Math.Sin(sec * 0.9) * 60;
+            }
+            else if (_driftPattern == "Lectura diagonal")
+            {
+                double progress = (sec % 5.0) / 5.0;
+                dx = (progress * 320) - 160;
+                dy = (progress * 90) - 45;
+            }
+            else
+            {
+                double tClamped = Math.Min(1.0, sec / 6.0);
+                double ease = (1 - Math.Cos(tClamped * Math.PI)) / 2;
+                double destX = screenW - 120;
+                double destY = screenH - 120;
+                dx = (_driftBaseX + (destX - _driftBaseX) * ease) - _driftBaseX;
+                dy = (_driftBaseY + (destY - _driftBaseY) * ease) - _driftBaseY;
+            }
+
+            int finalX = (int)Math.Clamp(_driftBaseX + dx, 10, screenW - 20);
+            int finalY = (int)Math.Clamp(_driftBaseY + dy, 10, screenH - 20);
+            _currentDriftX = finalX;
+            _currentDriftY = finalY;
+
+            if (_driftCursorWindow != null && _driftHwnd != IntPtr.Zero)
+            {
+                NativeMethods.SetWindowPos(_driftHwnd, NativeMethods.HWND_TOPMOST,
+                    finalX, finalY, 0, 0,
+                    NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_SHOWWINDOW);
+            }
+
+            UpdateMousepadVisual(finalX, finalY, false);
+        };
+        _driftTimer.Start();
+
+        OrganicDriftToggleBtn.Content = "Detener deriva";
+        OrganicDriftToggleBtn.Style = (Style)FindResource("PrimaryPillBtn");
+        OrganicDriftStatusText.Text = $"Deriva activa ({_driftPattern})";
+        OrganicDriftStatusText.Foreground = AccentBlueBrush;
+    }
+
+    private void ToggleCursorDecoy()
+    {
+        if (_isDecoyActive) SetMouseLiveMode();
+        else SetMouseFreezeMode();
+    }
+
+    private void OnToggleFreezeDecoyClick(object sender, RoutedEventArgs e)
+    {
+        ToggleCursorDecoy();
+    }
+
+    private void OnMouseModeRadioClicked(object sender, RoutedEventArgs e)
+    {
+        if (sender == ModeMouseLiveRadio) SetMouseLiveMode();
+        else if (sender == ModeMouseFreezeRadio) SetMouseFreezeMode();
+        else if (sender == ModeMouseTrackRadio) SetMouseTrackMode();
+        else if (sender == ModeMouseJitterRadio) SetMouseJitterMode();
+        else if (sender == ModeMouseLagRadio) SetMouseLagMode();
+        else if (sender == ModeMouseDriftRadio) SetMouseDriftMode();
+    }
+
+    private void OnMouseLiveOptionClick(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        SetMouseLiveMode();
+    }
+
+    private void OnMouseFreezeOptionClick(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        SetMouseFreezeMode();
+    }
+
+    private void OnMouseTrackOptionClick(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        SetMouseTrackMode();
+    }
+
+    private void OnMouseJitterOptionClick(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        SetMouseJitterMode();
+    }
+
+    private void OnMouseLagOptionClick(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        SetMouseLagMode();
+    }
+
+    private void OnMouseDriftOptionClick(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        SetMouseDriftMode();
     }
 
     
@@ -359,119 +797,18 @@ public partial class MainWindow : Window
     private void OnToggleMousePlayClick(object sender, RoutedEventArgs e)
     {
         if (_isMouseRecording) StopMouseRecording();
-        if (_isMousePlaying) StopMousePlayback();
-        else StartMousePlayback();
+        if (_isMousePlaying) SetMouseLiveMode();
+        else SetMouseTrackMode();
     }
 
-    
     private void StartMousePlayback()
     {
-        lock (_mouseTrackLock)
-        {
-            if (_recordedMouseTrack.Count < 2)
-            {
-                LoadPresetMouseMovement(1);
-            }
-        }
-
-        _isMousePlaying = true;
-        _mousePlayStopwatch.Restart();
-
-        if (_cloneCursorWindow == null)
-        {
-            _cloneCursorWindow = CreateCursorWindow(excludeFromCapture: false);
-        }
-        _cloneCursorWindow.Show();
-        _cloneHwnd = new WindowInteropHelper(_cloneCursorWindow).EnsureHandle();
-
-        if (HideOriginalMouseCheck.IsChecked == true)
-        {
-            HideSystemCursor();
-
-            // Cursor seguidor local protegido (WDA_EXCLUDEFROMCAPTURE):
-            // Visible para el usuario en su monitor pero invisible para videollamadas/capturas de pantalla.
-            if (_followerCursorWindow == null)
-            {
-                _followerCursorWindow = CreateCursorWindow(excludeFromCapture: true);
-            }
-            _followerCursorWindow.Show();
-            _followerHwnd = new WindowInteropHelper(_followerCursorWindow).EnsureHandle();
-        }
-
-        long totalDuration;
-        lock (_mouseTrackLock)
-        {
-            totalDuration = _recordedMouseTrack[^1].ElapsedMs;
-            if (totalDuration <= 0) totalDuration = 1000;
-        }
-
-        _mousePlayTimer?.Stop();
-        _mousePlayTimer = new DispatcherTimer(DispatcherPriority.Render)
-        {
-            Interval = TimeSpan.FromMilliseconds(16)
-        };
-        _mousePlayTimer.Tick += (_, _) =>
-        {
-            if (!_isMousePlaying) return;
-
-            double speed = _mousePlaySpeed > 0 ? _mousePlaySpeed : 1.0;
-            long elapsed = (long)(_mousePlayStopwatch.ElapsedMilliseconds * speed) % totalDuration;
-
-            MousePoint currentPt = GetInterpolatedPoint(elapsed);
-
-            if (_cloneHwnd != IntPtr.Zero)
-            {
-                NativeMethods.SetWindowPos(_cloneHwnd, NativeMethods.HWND_TOPMOST,
-                    currentPt.X, currentPt.Y, 0, 0,
-                    NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_SHOWWINDOW);
-            }
-
-            if (_followerHwnd != IntPtr.Zero && HideOriginalMouseCheck.IsChecked == true)
-            {
-                NativeMethods.GetCursorPos(out var realPt);
-                NativeMethods.SetWindowPos(_followerHwnd, NativeMethods.HWND_TOPMOST,
-                    realPt.X, realPt.Y, 0, 0,
-                    NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_NOSIZE);
-            }
-
-            MouseClonePosText.Text = $"({currentPt.X}, {currentPt.Y})";
-            bool shouldTriggerClick = currentPt.IsClick;
-            UpdateMousepadVisual(currentPt.X, currentPt.Y, shouldTriggerClick);
-        };
-        _mousePlayTimer.Start();
-
-        MousePlayBtn.Content = "Detener clon";
-        MousePlayBtn.Style = (Style)FindResource("PrimaryPillBtn");
-        MouseRecordBtn.IsEnabled = false;
-        MouseRecordStatusDot.Fill = AccentBlueBrush;
-        MouseRecordStatusText.Text = "Clon activo en bucle (Visible en captura)";
+        SetMouseTrackMode();
     }
 
-    
     private void StopMousePlayback()
     {
-        _isMousePlaying = false;
-        _mousePlayTimer?.Stop();
-        _mousePlayStopwatch.Stop();
-
-        if (_cloneCursorWindow != null)
-        {
-            _cloneCursorWindow.Hide();
-        }
-
-        if (_followerCursorWindow != null)
-        {
-            _followerCursorWindow.Hide();
-        }
-
-        RestoreRealCursor();
-
-        MousePlayBtn.Content = "Reproducir clon (Bucle)";
-        MousePlayBtn.Style = (Style)FindResource("SecondaryPillBtn");
-        MouseRecordBtn.IsEnabled = true;
-        MouseRecordStatusDot.Fill = new SolidColorBrush(MediaColor.FromRgb(0x5f, 0x63, 0x68));
-        MouseRecordStatusText.Text = "Clon detenido. Cursor real restaurado.";
-        MouseClonePosText.Text = "En reposo";
+        SetMouseLiveMode();
     }
 
     
@@ -572,129 +909,22 @@ public partial class MainWindow : Window
     {
         if (_isMouseLagActive)
         {
-            StopMouseLag();
+            SetMouseLiveMode();
         }
         else
         {
-            StartMouseLag();
+            SetMouseLagMode();
         }
     }
 
     private void StartMouseLag()
     {
-        _isMouseLagActive = true;
-        if (_lagCursorWindow == null)
-        {
-            _lagCursorWindow = CreateCursorWindow(false);
-        }
-        if (_showLagGhost)
-        {
-            _lagCursorWindow.Show();
-            _lagHwnd = new WindowInteropHelper(_lagCursorWindow).EnsureHandle();
-        }
-        lock (_mouseLagHistory)
-        {
-            _mouseLagHistory.Clear();
-        }
-        _mouseLagStopwatch.Restart();
-        _mouseLagDroppedFrames = 0;
-
-        NativeMethods.GetCursorPos(out var curPt);
-        _currentLagTargetX = curPt.X;
-        _currentLagTargetY = curPt.Y;
-
-        _mouseLagTimer?.Stop();
-        _mouseLagTimer = new DispatcherTimer(DispatcherPriority.Render)
-        {
-            Interval = TimeSpan.FromMilliseconds(16)
-        };
-        _mouseLagTimer.Tick += (_, _) =>
-        {
-            if (!_isMouseLagActive) return;
-            NativeMethods.GetCursorPos(out var realPt);
-            long now = _mouseLagStopwatch.ElapsedMilliseconds;
-
-            lock (_mouseLagHistory)
-            {
-                _mouseLagHistory.Add((realPt.X, realPt.Y, now));
-                while (_mouseLagHistory.Count > 0 && (now - _mouseLagHistory[0].TimeMs) > 2000)
-                {
-                    _mouseLagHistory.RemoveAt(0);
-                }
-            }
-
-            long targetTime = now - _mouseLagMs;
-            int targetX = realPt.X;
-            int targetY = realPt.Y;
-
-            lock (_mouseLagHistory)
-            {
-                if (_mouseLagHistory.Count > 0)
-                {
-                    var match = _mouseLagHistory.LastOrDefault(p => p.TimeMs <= targetTime);
-                    if (match.TimeMs != 0)
-                    {
-                        targetX = match.X;
-                        targetY = match.Y;
-                    }
-                    else
-                    {
-                        targetX = _mouseLagHistory[0].X;
-                        targetY = _mouseLagHistory[0].Y;
-                    }
-                }
-            }
-
-            if (_mouseLagMs == 350)
-            {
-                _mouseLagDroppedFrames++;
-                if (_mouseLagDroppedFrames % 6 < 3)
-                {
-                    targetX = _currentLagTargetX;
-                    targetY = _currentLagTargetY;
-                }
-                else
-                {
-                    _currentLagTargetX = targetX;
-                    _currentLagTargetY = targetY;
-                }
-            }
-            else
-            {
-                _currentLagTargetX = targetX;
-                _currentLagTargetY = targetY;
-            }
-
-            if (_showLagGhost && _lagCursorWindow != null && _lagHwnd != IntPtr.Zero)
-            {
-                NativeMethods.SetWindowPos(_lagHwnd, NativeMethods.HWND_TOPMOST,
-                    _currentLagTargetX, _currentLagTargetY, 0, 0,
-                    NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_SHOWWINDOW);
-            }
-
-            UpdateMousepadVisual(realPt.X, realPt.Y, false);
-        };
-        _mouseLagTimer.Start();
-
-        MouseLagToggleBtn.Content = "Detener réplica";
-        MouseLagToggleBtn.Style = (Style)FindResource("PrimaryPillBtn");
-        MouseLagStatusText.Text = $"Réplica activa ({_mouseLagMs} ms lag)";
-        MouseLagStatusText.Foreground = AccentBlueBrush;
-        UpdateMouseLagVisuals();
+        SetMouseLagMode();
     }
 
     private void StopMouseLag()
     {
-        _isMouseLagActive = false;
-        _mouseLagTimer?.Stop();
-        _mouseLagStopwatch.Stop();
-        _lagCursorWindow?.Hide();
-
-        MouseLagToggleBtn.Content = "Iniciar réplica";
-        MouseLagToggleBtn.Style = (Style)FindResource("SecondaryPillBtn");
-        MouseLagStatusText.Text = "Réplica inactiva: Sin retraso.";
-        MouseLagStatusText.Foreground = InactiveTextBrush;
-        UpdateMouseLagVisuals();
+        SetMouseLiveMode();
     }
 
     private void OnSimulateMouseLagCheckClicked(object sender, RoutedEventArgs e)
@@ -842,6 +1072,63 @@ public partial class MainWindow : Window
     }
 
     
+    private static BitmapSource? _cachedCursorBitmap;
+    private static BitmapSource GetSystemCursorBitmap()
+    {
+        if (_cachedCursorBitmap != null) return _cachedCursorBitmap;
+
+        try
+        {
+            IntPtr hCursor = IntPtr.Zero;
+            string? regCur = Microsoft.Win32.Registry.GetValue(@"HKEY_CURRENT_USER\Control Panel\Cursors", "Arrow", null) as string;
+            if (!string.IsNullOrEmpty(regCur))
+            {
+                regCur = Environment.ExpandEnvironmentVariables(regCur);
+                if (File.Exists(regCur))
+                {
+                    hCursor = NativeMethods.LoadCursorFromFile(regCur);
+                }
+            }
+
+            if (hCursor == IntPtr.Zero)
+            {
+                string winDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+                string curPath = System.IO.Path.Combine(winDir, "Cursors", "aero_arrow.cur");
+                if (File.Exists(curPath))
+                {
+                    hCursor = NativeMethods.LoadCursorFromFile(curPath);
+                }
+            }
+
+            if (hCursor == IntPtr.Zero)
+            {
+                hCursor = NativeMethods.LoadCursor(IntPtr.Zero, (IntPtr)32512);
+            }
+
+            if (hCursor != IntPtr.Zero)
+            {
+                var src = Imaging.CreateBitmapSourceFromHIcon(hCursor, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+                src.Freeze();
+                NativeMethods.DestroyCursor(hCursor);
+                _cachedCursorBitmap = src;
+                return _cachedCursorBitmap;
+            }
+        }
+        catch { }
+
+        var visual = new DrawingVisual();
+        using (var dc = visual.RenderOpen())
+        {
+            var geo = Geometry.Parse("M0,0 L0,18 L4.5,13.5 L8.5,21.5 L11,20 L7,12.5 L13.5,12.5 Z");
+            dc.DrawGeometry(Brushes.White, new Pen(Brushes.Black, 1.2), geo);
+        }
+        var rtb = new RenderTargetBitmap(32, 32, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+        rtb.Render(visual);
+        rtb.Freeze();
+        _cachedCursorBitmap = rtb;
+        return _cachedCursorBitmap;
+    }
+
     private Window CreateCursorWindow(bool excludeFromCapture)
     {
         var win = new Window
@@ -851,8 +1138,8 @@ public partial class MainWindow : Window
             Background = Brushes.Transparent,
             ShowInTaskbar = false,
             Topmost = true,
-            Width = 24,
-            Height = 24,
+            Width = 32,
+            Height = 32,
             Focusable = false,
             ShowActivated = false,
             WindowStartupLocation = WindowStartupLocation.Manual,
@@ -860,16 +1147,17 @@ public partial class MainWindow : Window
             Top = -10000
         };
 
-        var canvas = new Canvas { Width = 24, Height = 24 };
-        var path = new System.Windows.Shapes.Path
+        var img = new Image
         {
-            Data = Geometry.Parse("M0,0 L0,18 L4.5,13.5 L8.5,21.5 L11,20 L7,12.5 L13.5,12.5 Z"),
-            Fill = Brushes.White,
-            Stroke = Brushes.Black,
-            StrokeThickness = 1.2
+            Source = GetSystemCursorBitmap(),
+            Width = 32,
+            Height = 32,
+            Stretch = Stretch.Uniform,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Top
         };
-        canvas.Children.Add(path);
-        win.Content = canvas;
+        RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
+        win.Content = img;
 
         win.SourceInitialized += (_, _) =>
         {
@@ -1391,11 +1679,6 @@ public partial class MainWindow : Window
         catch { }
     }
 
-        private void OnToggleFreezeDecoyClick(object sender, RoutedEventArgs e)
-    {
-        ToggleCursorDecoy();
-    }
-
     
     private void OnToggleAutoJitterClick(object sender, RoutedEventArgs e)
     {
@@ -1406,11 +1689,11 @@ public partial class MainWindow : Window
     {
         if (_isAutoJitterActive)
         {
-            StopAutoJitter();
+            SetMouseLiveMode();
         }
         else
         {
-            StartAutoJitter();
+            SetMouseJitterMode();
         }
     }
 
@@ -1419,7 +1702,6 @@ public partial class MainWindow : Window
         ToggleAutoJitter();
     }
 
-    
     private void OnAutoJitterIntervalChanged(object sender, SelectionChangedEventArgs e)
     {
         if (AutoJitterIntervalCombo == null) return;
@@ -1439,54 +1721,14 @@ public partial class MainWindow : Window
         }
     }
 
-    
     private void StartAutoJitter()
     {
-        _isAutoJitterActive = true;
-        if (_autoJitterTimer == null)
-        {
-            _autoJitterTimer = new DispatcherTimer();
-            _autoJitterTimer.Tick += (_, _) =>
-            {
-                if (_isAutoJitterActive)
-                {
-                    try
-                    {
-                        NativeMethods.mouse_event(NativeMethods.MOUSEEVENTF_MOVE, 1, 0, 0, UIntPtr.Zero);
-                        Thread.Sleep(20);
-                        NativeMethods.mouse_event(NativeMethods.MOUSEEVENTF_MOVE, unchecked((uint)-1), 0, 0, UIntPtr.Zero);
-
-                        AutoJitterStatusText.Text = $"Activo: Pulso emitido ({DateTime.Now:HH:mm:ss})";
-                        AutoJitterStatusText.Foreground = AccentBlueBrush;
-
-                        if (MousepadClickRipple != null && MousepadMiniCanvas != null)
-                        {
-                            NativeMethods.GetCursorPos(out var pt);
-                            UpdateMousepadVisual(pt.X, pt.Y, true);
-                        }
-                    }
-                    catch { }
-                }
-            };
-        }
-        _autoJitterTimer.Interval = TimeSpan.FromSeconds(_autoJitterIntervalSeconds);
-        _autoJitterTimer.Start();
-
-        AutoJitterToggleBtn.Content = "Detener";
-        AutoJitterToggleBtn.Style = (Style)FindResource("PrimaryPillBtn");
-        AutoJitterStatusText.Text = $"Activo: Pulso cada {_autoJitterIntervalSeconds} s";
-        AutoJitterStatusText.Foreground = AccentBlueBrush;
+        SetMouseJitterMode();
     }
 
     private void StopAutoJitter()
     {
-        _isAutoJitterActive = false;
-        _autoJitterTimer?.Stop();
-
-        AutoJitterToggleBtn.Content = "Activar";
-        AutoJitterToggleBtn.Style = (Style)FindResource("SecondaryPillBtn");
-        AutoJitterStatusText.Text = "Inactivo: Sin prevención de reposo.";
-        AutoJitterStatusText.Foreground = InactiveTextBrush;
+        SetMouseLiveMode();
     }
 
     private void OnToggleOrganicDriftClick(object sender, RoutedEventArgs e)
@@ -1498,11 +1740,11 @@ public partial class MainWindow : Window
     {
         if (_isOrganicDriftActive)
         {
-            StopOrganicDrift();
+            SetMouseLiveMode();
         }
         else
         {
-            StartOrganicDrift();
+            SetMouseDriftMode();
         }
     }
 
@@ -1524,103 +1766,12 @@ public partial class MainWindow : Window
 
     private void StartOrganicDrift()
     {
-        _isOrganicDriftActive = true;
-        NativeMethods.GetCursorPos(out var pt);
-        _driftBaseX = pt.X;
-        _driftBaseY = pt.Y;
-        _currentDriftX = pt.X;
-        _currentDriftY = pt.Y;
-
-        if (_driftCursorWindow == null)
-        {
-            _driftCursorWindow = CreateCursorWindow(false);
-        }
-        _driftCursorWindow.Show();
-        _driftHwnd = new WindowInteropHelper(_driftCursorWindow).EnsureHandle();
-
-        _driftStopwatch.Restart();
-        _driftTimer?.Stop();
-        _driftTimer = new DispatcherTimer(DispatcherPriority.Render)
-        {
-            Interval = TimeSpan.FromMilliseconds(16)
-        };
-        _driftTimer.Tick += (_, _) =>
-        {
-            if (!_isOrganicDriftActive) return;
-
-            double sec = _driftStopwatch.Elapsed.TotalSeconds;
-            int screenW = NativeMethods.GetSystemMetrics(0);
-            int screenH = NativeMethods.GetSystemMetrics(1);
-            if (screenW <= 0) screenW = 1920;
-            if (screenH <= 0) screenH = 1080;
-
-            double dx = 0;
-            double dy = 0;
-
-            if (_driftPattern == "Oscilación biológica")
-            {
-                dx = Math.Sin(sec * 1.6) * 45 + Math.Sin(sec * 3.4) * 18 + Math.Cos(sec * 0.7) * 25;
-                dy = Math.Cos(sec * 1.2) * 35 + Math.Sin(sec * 2.7) * 14 + Math.Sin(sec * 0.5) * 20;
-            }
-            else if (_driftPattern == "Círculos sutiles")
-            {
-                dx = Math.Cos(sec * 0.9) * 60;
-                dy = Math.Sin(sec * 0.9) * 60;
-            }
-            else if (_driftPattern == "Lectura diagonal")
-            {
-                double progress = (sec % 5.0) / 5.0;
-                dx = (progress * 320) - 160;
-                dy = (progress * 90) - 45;
-            }
-            else
-            {
-                double tClamped = Math.Min(1.0, sec / 6.0);
-                double ease = (1 - Math.Cos(tClamped * Math.PI)) / 2;
-                double destX = screenW - 120;
-                double destY = screenH - 120;
-                dx = (_driftBaseX + (destX - _driftBaseX) * ease) - _driftBaseX;
-                dy = (_driftBaseY + (destY - _driftBaseY) * ease) - _driftBaseY;
-            }
-
-            int finalX = (int)Math.Clamp(_driftBaseX + dx, 10, screenW - 20);
-            int finalY = (int)Math.Clamp(_driftBaseY + dy, 10, screenH - 20);
-            _currentDriftX = finalX;
-            _currentDriftY = finalY;
-
-            if (_driftHwnd != IntPtr.Zero)
-            {
-                NativeMethods.SetWindowPos(_driftHwnd, NativeMethods.HWND_TOPMOST,
-                    finalX, finalY, 0, 0,
-                    NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_SHOWWINDOW);
-            }
-
-            UpdateMousepadDriftVisual(finalX, finalY);
-        };
-        _driftTimer.Start();
-
-        OrganicDriftToggleBtn.Content = "Detener deriva";
-        OrganicDriftToggleBtn.Style = (Style)FindResource("PrimaryPillBtn");
-        OrganicDriftStatusText.Text = $"Deriva activa ({_driftPattern})";
-        OrganicDriftStatusText.Foreground = AccentBlueBrush;
+        SetMouseDriftMode();
     }
 
     private void StopOrganicDrift()
     {
-        _isOrganicDriftActive = false;
-        _driftTimer?.Stop();
-        _driftStopwatch.Stop();
-        _driftCursorWindow?.Hide();
-
-        if (MousepadDriftDot != null)
-        {
-            MousepadDriftDot.Visibility = Visibility.Collapsed;
-        }
-
-        OrganicDriftToggleBtn.Content = "Iniciar deriva";
-        OrganicDriftToggleBtn.Style = (Style)FindResource("SecondaryPillBtn");
-        OrganicDriftStatusText.Text = "Deriva inactiva.";
-        OrganicDriftStatusText.Foreground = InactiveTextBrush;
+        SetMouseLiveMode();
     }
 
     private void UpdateMousepadDriftVisual(double screenX, double screenY)

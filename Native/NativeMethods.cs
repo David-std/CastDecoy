@@ -407,6 +407,12 @@ internal static class NativeMethods
     [DllImport("user32.dll")]
     public static extern bool DestroyCursor(IntPtr hCursor);
 
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    public static extern IntPtr LoadCursorFromFile(string lpFileName);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern IntPtr LoadCursor(IntPtr hInstance, IntPtr lpCursorName);
+
     [DllImport("user32.dll")]
     public static extern bool DestroyWindow(IntPtr hWnd);
 
