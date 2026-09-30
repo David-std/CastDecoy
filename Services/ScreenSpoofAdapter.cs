@@ -79,11 +79,29 @@ public static class ScreenSpoofAdapter
     /// </summary>
     public static string BuildLaunchArguments(string browserPath, string? targetUrl = null)
     {
-        string profileDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CastDecoy", "BrowserProfile");
+        string exeName = Path.GetFileNameWithoutExtension(browserPath).ToLowerInvariant();
+        string browserSubDir = "Chrome";
+        if (exeName.Contains("msedge") || exeName.Contains("edge")) browserSubDir = "Edge";
+        else if (exeName.Contains("brave")) browserSubDir = "Brave";
+        else if (exeName.Contains("opera")) browserSubDir = "Opera";
+        else if (exeName.Contains("firefox")) browserSubDir = "Firefox";
+        else if (exeName.Contains("chrome")) browserSubDir = "Chrome";
+        else browserSubDir = "Custom";
+
+        string profileDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CastDecoy", "BrowserProfile", browserSubDir);
         try
         {
             if (!Directory.Exists(profileDir))
                 Directory.CreateDirectory(profileDir);
+
+            string lockFile = Path.Combine(profileDir, "lockfile");
+            if (File.Exists(lockFile)) File.Delete(lockFile);
+            string singletonLock = Path.Combine(profileDir, "SingletonLock");
+            if (File.Exists(singletonLock)) File.Delete(singletonLock);
+            string singletonCookie = Path.Combine(profileDir, "SingletonCookie");
+            if (File.Exists(singletonCookie)) File.Delete(singletonCookie);
+            string singletonSocket = Path.Combine(profileDir, "SingletonSocket");
+            if (File.Exists(singletonSocket)) File.Delete(singletonSocket);
         }
         catch { }
 
@@ -91,12 +109,9 @@ public static class ScreenSpoofAdapter
 
         if (IsChromiumBrowser(browserPath))
         {
-            // Flags para cargar extensiones locales desempaquetadas para pruebas
             flags.Add("--enable-automation");
             flags.Add("--disable-infobars");
             flags.Add("--disable-blink-features=AutomationControlled");
-
-            // Deshabilitar APIs de detección de pantalla múltiple y limitar a 1 monitor
             flags.Add("--disable-features=WindowPlacement,MultiScreen,MultiScreenWindowPlacement");
             flags.Add("--screen-count=1");
             flags.Add($"--user-data-dir=\"{profileDir}\"");
@@ -113,9 +128,8 @@ public static class ScreenSpoofAdapter
         }
         else
         {
-            // Navegadores no-Chromium (ej. Firefox)
-            flags.Add("--disable-features=WindowPlacement,MultiScreen,MultiScreenWindowPlacement");
-            flags.Add("--screen-count=1");
+            flags.Add("-no-remote");
+            flags.Add($"-profile \"{profileDir}\"");
         }
 
         if (!string.IsNullOrWhiteSpace(targetUrl))

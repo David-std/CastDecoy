@@ -31,6 +31,8 @@ public partial class MainWindow : Window
     private string? _selectedBrowserName = null;
     private string? _selectedBrowserPath = null;
     private Process? _protectedBrowserProc = null;
+    private IntPtr _protectedBrowserHwnd = IntPtr.Zero;
+    private string? _activeProtectedBrowserKey = null;
     private string? _chromePath = null;
     private string? _edgePath = null;
     private string? _bravePath = null;
@@ -1418,13 +1420,13 @@ private void OnCardEyeClick(object sender, MouseButtonEventArgs e)
         {
             LaunchBrowserBtn.Content = $"Iniciar {name}";
         }
+        UpdateLiveDiagnosticStatus();
     }
 
     private void ToggleBrowserChipByKey(string key, string name, string path)
     {
         if (_selectedBrowserKey == key)
         {
-            // Deselect cleanly
             ClearBrowserChips();
             _selectedBrowserKey = null;
             _selectedBrowserName = null;
@@ -1433,6 +1435,7 @@ private void OnCardEyeClick(object sender, MouseButtonEventArgs e)
             {
                 LaunchBrowserBtn.Content = "Iniciar protegido";
             }
+            UpdateLiveDiagnosticStatus();
         }
         else
         {
@@ -1580,23 +1583,61 @@ private void OnCardEyeClick(object sender, MouseButtonEventArgs e)
         DiagnosticRow.Visibility = Visibility.Collapsed;
     }
 
+    private static string GetProcessNameForBrowserKey(string? key)
+    {
+        if (string.IsNullOrWhiteSpace(key)) return "chrome";
+        return key.ToLowerInvariant() switch
+        {
+            "msedge" or "edge" => "msedge",
+            "brave" => "brave",
+            "opera" => "opera",
+            "firefox" => "firefox",
+            _ => key.ToLowerInvariant()
+        };
+    }
+
     private void UpdateLiveDiagnosticStatus()
     {
         if (DiagnosticRow == null || DiagnosticRow.Visibility != Visibility.Visible)
             return;
 
+        string targetKey = _selectedBrowserKey ?? _activeProtectedBrowserKey ?? "chrome";
+        string expectedProcName = GetProcessNameForBrowserKey(targetKey);
+
         bool isBrowserActive = false;
-        if (_protectedBrowserProc != null)
+
+        if (_protectedBrowserHwnd != IntPtr.Zero && NativeMethods.IsWindow(_protectedBrowserHwnd))
+        {
+            isBrowserActive = true;
+        }
+
+        if (!isBrowserActive && _protectedBrowserProc != null)
         {
             try
             {
-                isBrowserActive = !_protectedBrowserProc.HasExited;
+                if (!_protectedBrowserProc.HasExited)
+                {
+                    isBrowserActive = true;
+                }
             }
-            catch
+            catch { }
+        }
+
+        if (!isBrowserActive)
+        {
+            var ghostedWin = _allWindows.FirstOrDefault(w =>
+                w.IsGhosted &&
+                !string.IsNullOrEmpty(w.ProcessName) &&
+                (w.ProcessName.Equals(expectedProcName, StringComparison.OrdinalIgnoreCase) ||
+                 w.ProcessName.Contains(expectedProcName, StringComparison.OrdinalIgnoreCase)) &&
+                NativeMethods.IsWindow(w.Handle));
+            if (ghostedWin != null)
             {
-                isBrowserActive = false;
+                isBrowserActive = true;
+                _protectedBrowserHwnd = ghostedWin.Handle;
             }
         }
+
         if (Environment.GetCommandLineArgs().Any(a => a.Equals("--test-diag-on", StringComparison.OrdinalIgnoreCase)))
         {
             isBrowserActive = true;
@@ -1607,7 +1648,6 @@ private void OnCardEyeClick(object sender, MouseButtonEventArgs e)
 
         if (isBrowserActive)
         {
-            // Estado protegido activo (cuadradito azul ON)
             DiagExtendedIndicator.Background = blueBrush;
             DiagExtendedSub.Text = "Screen.prototype neutralizado";
 
@@ -1622,7 +1662,6 @@ private void OnCardEyeClick(object sender, MouseButtonEventArgs e)
         }
         else
         {
-            // Estado inactivo (cuadradito gris OFF)
             DiagExtendedIndicator.Background = mutedBrush;
             DiagExtendedSub.Text = "Inicia con 'Iniciar protegido'";
 
@@ -1651,6 +1690,10 @@ private void OnCardEyeClick(object sender, MouseButtonEventArgs e)
             return;
         }
 
+        string browserKey = _selectedBrowserKey ?? "chrome";
+        _activeProtectedBrowserKey = browserKey;
+        _protectedBrowserHwnd = IntPtr.Zero;
+
         ScreenSpoofAdapter.StartDiagnosticServer();
 
         string args = ScreenSpoofAdapter.BuildLaunchArguments(_selectedBrowserPath, targetUrl);
@@ -1659,43 +1702,78 @@ private void OnCardEyeClick(object sender, MouseButtonEventArgs e)
         try
         {
             var proc = Process.Start(new ProcessStartInfo(_selectedBrowserPath, args) { UseShellExecute = true });
-            if (proc != null)
-            {
-                _protectedBrowserProc = proc;
-                DiagnosticRow.Visibility = Visibility.Visible;
-                UpdateLiveDiagnosticStatus();
+            _protectedBrowserProc = proc;
+            DiagnosticRow.Visibility = Visibility.Visible;
 
-                Task.Run(async () =>
+            string expectedProcName = GetProcessNameForBrowserKey(browserKey);
+
+            Task.Run(async () =>
+            {
+                IntPtr detectedHwnd = IntPtr.Zero;
+                uint detectedPid = 0;
+
+                for (int i = 0; i < 40; i++)
                 {
-                    for (int i = 0; i < 25; i++)
+                    await Task.Delay(150);
+
+                    if (proc != null)
                     {
-                        await Task.Delay(150);
-                        proc.Refresh();
-                        IntPtr hwnd = proc.MainWindowHandle;
-                        if (hwnd == IntPtr.Zero)
+                        try
                         {
-                            Dispatcher.Invoke(() =>
+                            proc.Refresh();
+                            if (proc.MainWindowHandle != IntPtr.Zero && NativeMethods.IsWindow(proc.MainWindowHandle))
                             {
-                                var win = _allWindows.FirstOrDefault(w =>
-                                    !string.IsNullOrEmpty(w.ProcessName) &&
-                                    w.ProcessName.Contains(_selectedBrowserKey ?? "chrome", StringComparison.OrdinalIgnoreCase));
-                                if (win != null) hwnd = win.Handle;
-                            });
+                                detectedHwnd = proc.MainWindowHandle;
+                                detectedPid = (uint)proc.Id;
+                            }
                         }
-                        if (hwnd != IntPtr.Zero)
-                        {
-                            Dispatcher.Invoke(() =>
-                            {
-                                NativeMethods.SetWindowDisplayAffinity(hwnd, NativeMethods.WDA_EXCLUDEFROMCAPTURE);
-                                Injector.SetAffinityRemote((uint)proc.Id, hwnd, NativeMethods.WDA_EXCLUDEFROMCAPTURE);
-                                RefreshWindows();
-                                UpdateLiveDiagnosticStatus();
-                            });
-                            break;
-                        }
+                        catch { }
                     }
+
+                    if (detectedHwnd == IntPtr.Zero)
+                    {
+                        Dispatcher.Invoke(() =>
+                        {
+                            var win = _allWindows.FirstOrDefault(w =>
+                                !string.IsNullOrEmpty(w.ProcessName) &&
+                                (w.ProcessName.Equals(expectedProcName, StringComparison.OrdinalIgnoreCase) ||
+                                 w.ProcessName.Contains(expectedProcName, StringComparison.OrdinalIgnoreCase)) &&
+                                NativeMethods.IsWindow(w.Handle));
+                            if (win != null)
+                            {
+                                detectedHwnd = win.Handle;
+                                detectedPid = win.ProcessId;
+                            }
+                        });
+                    }
+
+                    if (detectedHwnd != IntPtr.Zero)
+                    {
+                        _protectedBrowserHwnd = detectedHwnd;
+                        Dispatcher.Invoke(() =>
+                        {
+                            NativeMethods.SetWindowDisplayAffinity(detectedHwnd, NativeMethods.WDA_EXCLUDEFROMCAPTURE);
+                            if (detectedPid != 0)
+                            {
+                                Injector.SetAffinityRemote(detectedPid, detectedHwnd, NativeMethods.WDA_EXCLUDEFROMCAPTURE);
+                            }
+                            var winObj = _allWindows.FirstOrDefault(w => w.Handle == detectedHwnd);
+                            if (winObj != null)
+                            {
+                                winObj.IsGhosted = true;
+                            }
+                            RefreshWindows();
+                            UpdateLiveDiagnosticStatus();
+                        });
+                        break;
+                    }
+                }
+
+                Dispatcher.Invoke(() =>
+                {
+                    UpdateLiveDiagnosticStatus();
                 });
-            }
+            });
 
             string msg = hasExtension
                 ? $"Navegador {_selectedBrowserName} iniciado con aislamiento de pantalla única (ScreenSpoof cargado y flags de monitor único aplicados)."
