@@ -132,10 +132,7 @@ public partial class MainWindow : Window
                 UpdateActionButtons();
                 InitMonitorInfo();
                 StartLivePreviewLoop();
-                UpdateSelfHotkeyVisual();
-                UpdateFreezeHotkeyVisual();
-                UpdateCamHotkeyVisual();
-                UpdateMicHotkeyVisual();
+                UpdateAllHotkeysVisuals();
                 InitCameraControls();
                 InitMicrophoneControls();
                 InitMouseControls();
@@ -148,6 +145,7 @@ public partial class MainWindow : Window
                     bool testDiagPartial = Environment.GetCommandLineArgs().Any(a => a.Equals("--test-diag-partial", StringComparison.OrdinalIgnoreCase));
                     bool testMic = Environment.GetCommandLineArgs().Any(a => a.Equals("--test-mic", StringComparison.OrdinalIgnoreCase));
                     bool testMouse = Environment.GetCommandLineArgs().Any(a => a.Equals("--test-mouse", StringComparison.OrdinalIgnoreCase));
+                    bool testHotkeys = Environment.GetCommandLineArgs().Any(a => a.Equals("--test-hotkeys", StringComparison.OrdinalIgnoreCase));
                     Dispatcher.InvokeAsync(async () =>
                     {
                         await Task.Delay(2000);
@@ -159,6 +157,11 @@ public partial class MainWindow : Window
                         else if (testMouse)
                         {
                             SwitchTab(2);
+                            await Task.Delay(300);
+                        }
+                        else if (testHotkeys)
+                        {
+                            SwitchTab(5);
                             await Task.Delay(300);
                         }
                         if (testOpera && ChipOpera != null)
@@ -182,7 +185,7 @@ public partial class MainWindow : Window
                                 rtb.Render(this);
                                 var encoder = new PngBitmapEncoder();
                                 encoder.Frames.Add(BitmapFrame.Create(rtb));
-                                string fileName = testMouse ? "mouse_tab_preview.png" : (testMic ? "mic_tab_preview.png" : (testDiagOn ? "diagnostic_card_on_preview.png" : (testDiagPartial ? "diagnostic_card_partial_preview.png" : (testDiag ? "diagnostic_card_preview.png" : (testOpera ? "opera_selected_preview.png" : "browser_chips_preview.png")))));
+                                string fileName = testHotkeys ? "hotkeys_tab_preview.png" : (testMouse ? "mouse_tab_preview.png" : (testMic ? "mic_tab_preview.png" : (testDiagOn ? "diagnostic_card_on_preview.png" : (testDiagPartial ? "diagnostic_card_partial_preview.png" : (testDiag ? "diagnostic_card_preview.png" : (testOpera ? "opera_selected_preview.png" : "browser_chips_preview.png"))))));
                                 string outPath = System.IO.Path.Combine(@"C:\Users\david\.gemini\antigravity-ide\brain\d7697bb7-bcbd-4c19-a1e3-9da4624e79d9", fileName);
                                 using var fs = File.Create(outPath);
                                 encoder.Save(fs);

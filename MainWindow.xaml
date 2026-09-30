@@ -1034,7 +1034,8 @@
                                 <Button Style="{StaticResource CarouselNavBtn}" ToolTip="Atajo anterior" Click="OnMouseHotkeyPrevClick">
                                     <Path Data="M15 18l-6-6 6-6" Stroke="{StaticResource TextSecondaryBrush}" StrokeThickness="1.5" Width="7" Height="7" Stretch="Uniform"/>
                                 </Button>
-                                <TextBlock x:Name="MouseHotkeyNameText" Text="Congelar cursor:" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="6,0,6,0"/>
+                                <TextBlock x:Name="MouseHotkeyIndexText" Text="1/6" FontSize="10" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" Margin="6,0,2,0"/>
+                                <TextBlock x:Name="MouseHotkeyNameText" Text="Congelar cursor:" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,6,0"/>
                                 <Border Background="#f2f2f7" BorderBrush="#d1d1d6" BorderThickness="1"
                                         CornerRadius="4" Padding="6,1.5" VerticalAlignment="Center" Margin="0,0,6,0">
                                     <TextBlock x:Name="FreezeHotkeyValueText" Text="Ctrl + Shift + F" FontSize="11"
@@ -1137,16 +1138,26 @@
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
-                                <!-- Title + Apply Button -->
                                 <Grid Grid.Row="0" Margin="0,0,0,8">
                                     <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="2. Pizarra de dibujo interactiva" FontSize="12.5" FontWeight="SemiBold"
                                                Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
-                                    <Button Grid.Column="1" Style="{StaticResource PrimaryPillBtn}" Height="26" Padding="12,0"
-                                            Content="Usar como ruta activa" Click="OnApplyDrawingToTrackClick"/>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
+                                        <Border Background="#f1f5f9" BorderBrush="#e2e8f0" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock x:Name="MousePointsText" Text="0 pts" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                <TextBlock Text=" • " FontSize="10.5" Foreground="{StaticResource TextMutedBrush}"/>
+                                                <TextBlock x:Name="MouseDurationText" Text="0.0s" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <TextBlock x:Name="MouseClicksText" Text="0 izq • 0 der" FontSize="10.5" FontWeight="Medium" Foreground="{StaticResource AccentBlueBrush}" Margin="8,0,0,0" VerticalAlignment="Center" Visibility="Collapsed"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="2" x:Name="ApplyDrawingBtn" Style="{StaticResource PrimaryPillBtn}" Height="26" Padding="12,0"
+                                            Content="Reproducir dibujo" Click="OnApplyDrawingToTrackClick"/>
                                 </Grid>
 
                                 <!-- Interactive Canvas with Dot Grid Pattern -->
@@ -1177,11 +1188,11 @@
                                     </Grid>
                                 </Border>
 
-                                <!-- Toolbar & Metrics -->
                                 <Grid Grid.Row="2" Margin="0,8,0,0">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
 
                                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
@@ -1193,20 +1204,16 @@
                                                 Content="Rect" Click="OnDrawRectClick"/>
                                         <Button x:Name="ToolCircleBtn" Style="{StaticResource SecondaryPillBtn}" Height="24" Padding="8,0" Margin="0,0,5,0"
                                                 Content="Círculo" Click="OnDrawCircleClick"/>
-                                        <Button x:Name="ToolClearBtn" Style="{StaticResource SecondaryPillBtn}" Height="24" Padding="8,0" Margin="0,0,5,0"
+                                        <Button x:Name="ToolClearBtn" Style="{StaticResource SecondaryPillBtn}" Height="24" Padding="8,0"
                                                 Content="Limpiar" Click="OnClearDrawingClick"/>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="Presets:" FontSize="10.5" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                         <Button Style="{StaticResource SecondaryPillBtn}" Height="24" Padding="8,0" Margin="0,0,5,0"
                                                 Content="Lectura" Click="OnPresetReadingClick"/>
                                         <Button Style="{StaticResource SecondaryPillBtn}" Height="24" Padding="8,0"
                                                 Content="Oficina" Click="OnPresetOfficeClick"/>
-                                    </StackPanel>
-
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                        <TextBlock x:Name="MousePointsText" Text="0 pts" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,4,0"/>
-                                        <TextBlock Text="•" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,4,0"/>
-                                        <TextBlock x:Name="MouseDurationText" Text="0.0s" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,4,0"/>
-                                        <TextBlock Text="•" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,4,0"/>
-                                        <TextBlock x:Name="MouseClicksText" Text="0 izq • 0 der" FontSize="11" FontWeight="Medium" Foreground="{StaticResource AccentBlueBrush}"/>
                                     </StackPanel>
                                 </Grid>
                             </Grid>
@@ -1300,18 +1307,16 @@
                                         <TextBlock Text="Simula el puntero reproduciendo la trayectoria dibujada o grabada."
                                                    FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="26,1,0,2" TextTrimming="CharacterEllipsis"/>
                                         <StackPanel Orientation="Horizontal" Margin="26,2,0,0">
-                                            <Button x:Name="MouseRecordBtn" Style="{StaticResource SecondaryPillBtn}" Height="24" Padding="8,0" Margin="0,0,6,0"
+                                            <Button x:Name="MouseRecordBtn" Style="{StaticResource SecondaryPillBtn}" Height="24" Padding="10,0" Margin="0,0,8,0"
                                                     Content="Grabar ruta" Click="OnToggleMouseRecordClick"/>
-                                            <Button Style="{StaticResource SecondaryPillBtn}" Height="24" Padding="8,0" Margin="0,0,6,0"
-                                                    Content="Limpiar" Click="OnClearMouseTrackClick"/>
                                             <TextBlock Text="Velocidad:" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                            <ComboBox x:Name="MouseSpeedCombo" Width="72" Height="24" SelectionChanged="OnMouseSpeedChanged">
+                                            <ComboBox x:Name="MouseSpeedCombo" Width="68" Height="24" SelectionChanged="OnMouseSpeedChanged">
                                                 <ComboBoxItem Content="0.5x"/>
                                                 <ComboBoxItem Content="1.0x" IsSelected="True"/>
                                                 <ComboBoxItem Content="1.5x"/>
                                                 <ComboBoxItem Content="2.0x"/>
                                             </ComboBox>
-                                            <TextBlock x:Name="MouseRecordStatusText" Text="Listo para reproducir" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="8,0,0,0" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock x:Name="MouseRecordStatusText" Text="Listo" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="8,0,0,0" MaxWidth="85" TextTrimming="CharacterEllipsis"/>
                                             <Ellipse x:Name="MouseRecordStatusDot" Visibility="Collapsed"/>
                                             <CheckBox x:Name="HideOriginalMouseCheck" IsChecked="True" Visibility="Collapsed"/>
                                             <CheckBox x:Name="RecordClicksCheck" IsChecked="True" Visibility="Collapsed"/>
@@ -1481,7 +1486,8 @@
                                 <Button Style="{StaticResource CarouselNavBtn}" ToolTip="Atajo anterior" Click="OnCamHotkeyPrevClick">
                                     <Path Data="M15 18l-6-6 6-6" Stroke="{StaticResource TextSecondaryBrush}" StrokeThickness="1.5" Width="7" Height="7" Stretch="Uniform"/>
                                 </Button>
-                                <TextBlock x:Name="CamHotkeyNameText" Text="Congelar fotograma:" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="6,0,6,0"/>
+                                <TextBlock x:Name="CamHotkeyIndexText" Text="1/5" FontSize="10" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" Margin="6,0,2,0"/>
+                                <TextBlock x:Name="CamHotkeyNameText" Text="Congelar fotograma:" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,6,0"/>
                                 <Border Background="#f2f2f7" BorderBrush="#d1d1d6" BorderThickness="1"
                                         CornerRadius="4" Padding="6,1.5" VerticalAlignment="Center" Margin="0,0,6,0">
                                     <TextBlock x:Name="CamHotkeyValueText" Text="Ctrl + Shift + C" FontSize="11"
@@ -1898,7 +1904,8 @@
                                 <Button Style="{StaticResource CarouselNavBtn}" ToolTip="Atajo anterior" Click="OnMicHotkeyPrevClick">
                                     <Path Data="M15 18l-6-6 6-6" Stroke="{StaticResource TextSecondaryBrush}" StrokeThickness="1.5" Width="7" Height="7" Stretch="Uniform"/>
                                 </Button>
-                                <TextBlock x:Name="MicHotkeyNameText" Text="Mute falso:" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="6,0,6,0"/>
+                                <TextBlock x:Name="MicHotkeyIndexText" Text="1/4" FontSize="10" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" Margin="6,0,2,0"/>
+                                <TextBlock x:Name="MicHotkeyNameText" Text="Mute falso:" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,6,0"/>
                                 <Border Background="#f2f2f7" BorderBrush="#d1d1d6" BorderThickness="1"
                                         CornerRadius="4" Padding="6,1.5" VerticalAlignment="Center" Margin="0,0,6,0">
                                     <TextBlock x:Name="MicHotkeyValueText" Text="Ctrl + Shift + M" FontSize="11"
@@ -2360,72 +2367,172 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Row 1: App Visibility -->
-                        <Border BorderBrush="{StaticResource DividerLineBrush}" BorderThickness="0,0,0,1" Padding="18,13">
-                            <Grid>
-                                <TextBlock Text="Abrir o minimizar CastDecoy" FontSize="12.5" FontWeight="Medium"
-                                           Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                    <Border Background="#f2f2f7" BorderBrush="#d1d1d6" BorderThickness="1"
-                                            CornerRadius="4" Padding="8,2.5" Margin="0,0,10,0" VerticalAlignment="Center">
-                                        <TextBlock x:Name="SelfHotkeyValueText" Text="Ctrl + Shift + H" FontSize="11"
-                                                   FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                    </Border>
-                                    <Button Style="{StaticResource PencilBtn}" Click="OnEditSelfHotkeyClick" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </Grid>
-                        </Border>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="1"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
 
-                        <!-- Row 2: Freeze Mouse -->
-                        <Border BorderBrush="{StaticResource DividerLineBrush}" BorderThickness="0,0,0,1" Padding="18,13">
-                            <Grid>
-                                <TextBlock Text="Congelar cursor señuelo" FontSize="12.5" FontWeight="Medium"
-                                           Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                            <StackPanel Grid.Column="0">
                                 <TextBlock x:Name="TileFreezeStatusText" Visibility="Collapsed"/>
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                    <Border Background="#f2f2f7" BorderBrush="#d1d1d6" BorderThickness="1"
-                                            CornerRadius="4" Padding="8,2.5" Margin="0,0,10,0" VerticalAlignment="Center">
-                                        <TextBlock Text="Ctrl + Shift + F" FontSize="11"
-                                                   FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                    </Border>
-                                    <Button Style="{StaticResource PencilBtn}" Click="OnEditFreezeHotkeyClick" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-
-                        <!-- Row 3: Cam Decoy -->
-                        <Border BorderBrush="{StaticResource DividerLineBrush}" BorderThickness="0,0,0,1" Padding="18,13">
-                            <Grid>
-                                <TextBlock Text="Congelar cámara señuelo" FontSize="12.5" FontWeight="Medium"
-                                           Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                                 <TextBlock x:Name="TileCamStatusText" Visibility="Collapsed"/>
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                    <Border Background="#f2f2f7" BorderBrush="#d1d1d6" BorderThickness="1"
-                                            CornerRadius="4" Padding="8,2.5" Margin="0,0,10,0" VerticalAlignment="Center">
-                                        <TextBlock Text="Ctrl + Shift + C" FontSize="11"
-                                                   FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                    </Border>
-                                    <Button Style="{StaticResource PencilBtn}" Click="OnEditCamHotkeyClick" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-
-                        <!-- Row 4: Mic Decoy -->
-                        <Border Padding="18,13">
-                            <Grid>
-                                <TextBlock Text="Mute falso de micrófono" FontSize="12.5" FontWeight="Medium"
-                                           Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                                 <TextBlock x:Name="TileMicStatusText" Visibility="Collapsed"/>
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                    <Border Background="#f2f2f7" BorderBrush="#d1d1d6" BorderThickness="1"
-                                            CornerRadius="4" Padding="8,2.5" Margin="0,0,10,0" VerticalAlignment="Center">
-                                        <TextBlock Text="Ctrl + Shift + M" FontSize="11"
-                                                   FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                    </Border>
-                                    <Button Style="{StaticResource PencilBtn}" Click="OnEditMicHotkeyClick" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </Grid>
-                        </Border>
+                                <Border BorderBrush="{StaticResource DividerLineBrush}" BorderThickness="0,0,0,1" Padding="18,10">
+                                    <Grid>
+                                        <TextBlock Text="Abrir o minimizar CastDecoy" FontSize="12" FontWeight="Medium"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <Border Background="#f2f2f7" BorderBrush="#d1d1d6" BorderThickness="1"
+                                                    CornerRadius="4" Padding="7,2" Margin="0,0,8,0" VerticalAlignment="Center">
+                                                <TextBlock x:Name="SelfHotkeyValueText" Text="Ctrl + Shift + H" FontSize="10.5"
+                                                           FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                            </Border>
+                                            <Button Style="{StaticResource PencilBtn}" Click="OnEditSelfHotkeyClick" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Border BorderBrush="{StaticResource DividerLineBrush}" BorderThickness="0,0,0,1" Padding="18,10">
+                                    <Grid>
+                                        <TextBlock Text="Congelar cursor señuelo" FontSize="12" FontWeight="Medium"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <Border Background="#f2f2f7" BorderBrush="#d1d1d6" BorderThickness="1"
+                                                    CornerRadius="4" Padding="7,2" Margin="0,0,8,0" VerticalAlignment="Center">
+                                                <TextBlock x:Name="Tab5FreezeHotkeyValueText" Text="Ctrl + Shift + F" FontSize="10.5"
+                                                           FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                            </Border>
+                                            <Button Style="{StaticResource PencilBtn}" Click="OnEditFreezeHotkeyClick" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Border BorderBrush="{StaticResource DividerLineBrush}" BorderThickness="0,0,0,1" Padding="18,10">
+                                    <Grid>
+                                        <TextBlock Text="Grabar ruta de cursor" FontSize="12" FontWeight="Medium"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <Border Background="#f2f2f7" BorderBrush="#d1d1d6" BorderThickness="1"
+                                                    CornerRadius="4" Padding="7,2" Margin="0,0,8,0" VerticalAlignment="Center">
+                                                <TextBlock x:Name="Tab5RecordHotkeyValueText" Text="Ctrl + Shift + G" FontSize="10.5"
+                                                           FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                            </Border>
+                                            <Button Style="{StaticResource PencilBtn}" Click="OnEditRecordHotkeyClick" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Border BorderBrush="{StaticResource DividerLineBrush}" BorderThickness="0,0,0,1" Padding="18,10">
+                                    <Grid>
+                                        <TextBlock Text="Reproducir clon de ratón" FontSize="12" FontWeight="Medium"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <Border Background="#f2f2f7" BorderBrush="#d1d1d6" BorderThickness="1"
+                                                    CornerRadius="4" Padding="7,2" Margin="0,0,8,0" VerticalAlignment="Center">
+                                                <TextBlock x:Name="Tab5PlayHotkeyValueText" Text="Ctrl + Shift + R" FontSize="10.5"
+                                                           FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                            </Border>
+                                            <Button Style="{StaticResource PencilBtn}" Click="OnEditPlayHotkeyClick" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Border Padding="18,10">
+                                    <Grid>
+                                        <TextBlock Text="Simulación Anti-inactividad" FontSize="12" FontWeight="Medium"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <Border Background="#f2f2f7" BorderBrush="#d1d1d6" BorderThickness="1"
+                                                    CornerRadius="4" Padding="7,2" Margin="0,0,8,0" VerticalAlignment="Center">
+                                                <TextBlock x:Name="Tab5JigglerHotkeyValueText" Text="Ctrl + Shift + J" FontSize="10.5"
+                                                           FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                            </Border>
+                                            <Button Style="{StaticResource PencilBtn}" Click="OnEditJigglerHotkeyClick" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+
+                            <Border Grid.Column="1" Background="{StaticResource DividerLineBrush}"/>
+
+                            <StackPanel Grid.Column="2">
+                                <Border BorderBrush="{StaticResource DividerLineBrush}" BorderThickness="0,0,0,1" Padding="18,10">
+                                    <Grid>
+                                        <TextBlock Text="Congelar fotograma de cámara" FontSize="12" FontWeight="Medium"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <Border Background="#f2f2f7" BorderBrush="#d1d1d6" BorderThickness="1"
+                                                    CornerRadius="4" Padding="7,2" Margin="0,0,8,0" VerticalAlignment="Center">
+                                                <TextBlock x:Name="Tab5CamHotkeyValueText" Text="Ctrl + Shift + C" FontSize="10.5"
+                                                           FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                            </Border>
+                                            <Button Style="{StaticResource PencilBtn}" Click="OnEditCamHotkeyClick" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Border BorderBrush="{StaticResource DividerLineBrush}" BorderThickness="0,0,0,1" Padding="18,10">
+                                    <Grid>
+                                        <TextBlock Text="Activar / apagar cámara" FontSize="12" FontWeight="Medium"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <Border Background="#f2f2f7" BorderBrush="#d1d1d6" BorderThickness="1"
+                                                    CornerRadius="4" Padding="7,2" Margin="0,0,8,0" VerticalAlignment="Center">
+                                                <TextBlock x:Name="Tab5CamToggleHotkeyValueText" Text="Ctrl + Shift + V" FontSize="10.5"
+                                                           FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                            </Border>
+                                            <Button Style="{StaticResource PencilBtn}" Click="OnEditCamToggleHotkeyClick" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Border BorderBrush="{StaticResource DividerLineBrush}" BorderThickness="0,0,0,1" Padding="18,10">
+                                    <Grid>
+                                        <TextBlock Text="Señal inestable de cámara" FontSize="12" FontWeight="Medium"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <Border Background="#f2f2f7" BorderBrush="#d1d1d6" BorderThickness="1"
+                                                    CornerRadius="4" Padding="7,2" Margin="0,0,8,0" VerticalAlignment="Center">
+                                                <TextBlock x:Name="Tab5CamLagHotkeyValueText" Text="Ctrl + Shift + S" FontSize="10.5"
+                                                           FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                            </Border>
+                                            <Button Style="{StaticResource PencilBtn}" Click="OnEditCamLagHotkeyClick" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Border BorderBrush="{StaticResource DividerLineBrush}" BorderThickness="0,0,0,1" Padding="18,10">
+                                    <Grid>
+                                        <TextBlock Text="Mute falso de micrófono" FontSize="12" FontWeight="Medium"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <Border Background="#f2f2f7" BorderBrush="#d1d1d6" BorderThickness="1"
+                                                    CornerRadius="4" Padding="7,2" Margin="0,0,8,0" VerticalAlignment="Center">
+                                                <TextBlock x:Name="Tab5MicHotkeyValueText" Text="Ctrl + Shift + M" FontSize="10.5"
+                                                           FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                            </Border>
+                                            <Button Style="{StaticResource PencilBtn}" Click="OnEditMicHotkeyClick" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Border Padding="18,10">
+                                    <Grid>
+                                        <TextBlock Text="Voz entrecortada de micrófono" FontSize="12" FontWeight="Medium"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <Border Background="#f2f2f7" BorderBrush="#d1d1d6" BorderThickness="1"
+                                                    CornerRadius="4" Padding="7,2" Margin="0,0,8,0" VerticalAlignment="Center">
+                                                <TextBlock x:Name="Tab5MicLagHotkeyValueText" Text="Ctrl + Shift + K" FontSize="10.5"
+                                                           FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                            </Border>
+                                            <Button Style="{StaticResource PencilBtn}" Click="OnEditMicLagHotkeyClick" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </Grid>
                     </StackPanel>
                 </Border>
 

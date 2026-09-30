@@ -224,7 +224,12 @@ public partial class MainWindow : Window
         {
             MousePlayBtn.Content = "Reproducir";
             MousePlayBtn.Style = (Style)FindResource("SecondaryPillBtn");
-            MouseRecordStatusText.Text = "Listo para reproducir";
+            MouseRecordStatusText.Text = "Listo";
+        }
+        if (ApplyDrawingBtn != null)
+        {
+            ApplyDrawingBtn.Content = "Reproducir dibujo";
+            ApplyDrawingBtn.Style = (Style)FindResource("PrimaryPillBtn");
         }
         if (AutoJitterToggleBtn != null)
         {
@@ -355,7 +360,12 @@ public partial class MainWindow : Window
 
         MousePlayBtn.Content = "Detener clon";
         MousePlayBtn.Style = (Style)FindResource("PrimaryPillBtn");
-        MouseRecordStatusText.Text = "Clon activo en bucle";
+        if (ApplyDrawingBtn != null)
+        {
+            ApplyDrawingBtn.Content = "Detener dibujo";
+            ApplyDrawingBtn.Style = (Style)FindResource("SecondaryPillBtn");
+        }
+        MouseRecordStatusText.Text = "Clon activo";
     }
 
     private void SetMouseJitterMode()
@@ -1525,8 +1535,13 @@ public partial class MainWindow : Window
     
     private void OnApplyDrawingToTrackClick(object sender, RoutedEventArgs e)
     {
+        if (_isMousePlaying)
+        {
+            SetMouseLiveMode();
+            return;
+        }
+
         List<System.Windows.Point> sampledPoints = new();
-        string shapeName = "personalizada";
 
         double cw = DrawingCanvas.ActualWidth > 10 ? DrawingCanvas.ActualWidth : 350.0;
         double ch = DrawingCanvas.ActualHeight > 10 ? DrawingCanvas.ActualHeight : 145.0;
@@ -1539,11 +1554,9 @@ public partial class MainWindow : Window
                 return;
             }
             sampledPoints.AddRange(DrawingPolyline.Points);
-            shapeName = "mano alzada";
         }
         else if (_currentShapeTool == ShapeToolMode.Line)
         {
-            shapeName = "línea recta";
             int steps = 50;
             for (int i = 0; i <= steps; i++)
             {
@@ -1555,7 +1568,6 @@ public partial class MainWindow : Window
         }
         else if (_currentShapeTool == ShapeToolMode.Rect)
         {
-            shapeName = "rectángulo perimetral";
             double l = _rectBounds.Left, t = _rectBounds.Top, r = _rectBounds.Right, b = _rectBounds.Bottom;
             int segSteps = 25;
             for (int i = 0; i < segSteps; i++) sampledPoints.Add(new(l + (r - l) * (i / (double)segSteps), t));
@@ -1565,7 +1577,6 @@ public partial class MainWindow : Window
         }
         else if (_currentShapeTool == ShapeToolMode.Circle)
         {
-            shapeName = "órbita circular";
             int steps = 70;
             for (int i = 0; i <= steps; i++)
             {
@@ -1578,7 +1589,6 @@ public partial class MainWindow : Window
 
         if (sampledPoints.Count < 2) return;
 
-        if (_isMousePlaying) StopMousePlayback();
         if (_isMouseRecording) StopMouseRecording();
 
         int screenW = NativeMethods.GetSystemMetrics(0);
@@ -1623,7 +1633,9 @@ public partial class MainWindow : Window
         MouseDurationText.Text = $"{durSec:F1} s";
         MousePlayBtn.IsEnabled = true;
         MouseRecordStatusDot.Fill = AccentBlueBrush;
-        MouseRecordStatusText.Text = $"Ruta de {shapeName} cargada a pantalla completa ({screenW}x{screenH})";
+        MouseRecordStatusText.Text = "Clon activo";
+
+        SetMouseTrackMode();
     }
 
     
