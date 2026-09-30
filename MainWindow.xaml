@@ -1629,23 +1629,21 @@
                         </Border.Effect>
                         <Grid>
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>    <!-- Header Title -->
-                                <RowDefinition Height="0.85*"/>   <!-- Option 1: En vivo -->
-                                <RowDefinition Height="0.75*"/>   <!-- Option 2: Congelar fotograma -->
-                                <RowDefinition Height="1.15*"/>   <!-- Option 3: Señal inestable -->
-                                <RowDefinition Height="1.0*"/>    <!-- Option 4: Color de espera -->
-                                <RowDefinition Height="1.0*"/>    <!-- Option 5: Repetición en bucle -->
-                                <RowDefinition Height="1.0*"/>    <!-- Option 6: Video cortado -->
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="0.80*"/>
+                                <RowDefinition Height="0.80*"/>
+                                <RowDefinition Height="1.0*"/>
+                                <RowDefinition Height="1.0*"/>
+                                <RowDefinition Height="1.0*"/>
+                                <RowDefinition Height="1.0*"/>
                             </Grid.RowDefinitions>
 
-                            <!-- Header Title -->
                             <Border Grid.Row="0" Height="36" Padding="18,11,18,0" BorderBrush="{StaticResource DividerLineBrush}" BorderThickness="0,0,0,1">
                                 <TextBlock Text="Modos de transmisión señuelo" FontSize="12.5" FontWeight="SemiBold"
                                            Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Top"/>
                             </Border>
 
-                            <!-- Option 1: En vivo -->
-                            <Border Grid.Row="1" BorderBrush="{StaticResource DividerLineBrush}" BorderThickness="0,0,0,1" Padding="18,5"
+                            <Border Grid.Row="1" BorderBrush="{StaticResource DividerLineBrush}" BorderThickness="0,0,0,1" Padding="18,4"
                                     Cursor="Hand" MouseLeftButtonDown="OnLiveOptionClick">
                                 <StackPanel VerticalAlignment="Center">
                                     <RadioButton x:Name="ModeLiveRadio" GroupName="CamModeGroup" IsChecked="True"
@@ -1653,7 +1651,7 @@
                                         <TextBlock Text="En vivo" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" FontSize="12.5"/>
                                     </RadioButton>
                                     <TextBlock Text="Transmite la señal directa del sensor físico a resolución nativa."
-                                               FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="26,2,0,3" TextWrapping="Wrap"/>
+                                               FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="26,1,0,2" TextWrapping="Wrap"/>
                                     <StackPanel Orientation="Horizontal" Margin="26,1,0,0">
                                         <Border Background="#f2f2f7" BorderBrush="#e5e5ea" BorderThickness="1" CornerRadius="4" Padding="6,1.5">
                                             <TextBlock Text="Perfil: Directo a hardware" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"/>
@@ -1662,8 +1660,7 @@
                                 </StackPanel>
                             </Border>
 
-                            <!-- Option 2: Congelar fotograma -->
-                            <Border Grid.Row="2" BorderBrush="{StaticResource DividerLineBrush}" BorderThickness="0,0,0,1" Padding="18,5"
+                            <Border Grid.Row="2" BorderBrush="{StaticResource DividerLineBrush}" BorderThickness="0,0,0,1" Padding="18,4"
                                     Cursor="Hand" MouseLeftButtonDown="OnFreezeOptionClick">
                                 <Grid VerticalAlignment="Center">
                                     <Grid.ColumnDefinitions>
@@ -1676,7 +1673,7 @@
                                             <TextBlock Text="Congelar fotograma" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" FontSize="12.5"/>
                                         </RadioButton>
                                         <TextBlock Text="Mantiene fija la última imagen sin cortar la transmisión."
-                                                   FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="26,2,0,0" TextWrapping="Wrap"/>
+                                                   FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="26,1,0,0" TextWrapping="Wrap"/>
                                     </StackPanel>
                                     <Button Grid.Column="1" x:Name="FreezeCamToggleBtn" Style="{StaticResource SecondaryPillBtn}"
                                             Height="26" Padding="12,0" Content="Congelar" VerticalAlignment="Center" Margin="10,0,0,0"
@@ -1684,8 +1681,7 @@
                                 </Grid>
                             </Border>
 
-                            <!-- Option 3: Señal inestable -->
-                            <Border Grid.Row="3" BorderBrush="{StaticResource DividerLineBrush}" BorderThickness="0,0,0,1" Padding="18,5"
+                            <Border Grid.Row="3" BorderBrush="{StaticResource DividerLineBrush}" BorderThickness="0,0,0,1" Padding="18,4"
                                     Cursor="Hand" MouseLeftButtonDown="OnStutterOptionClick">
                                 <Grid VerticalAlignment="Center">
                                     <Grid.ColumnDefinitions>
@@ -1701,7 +1697,7 @@
                                             </StackPanel>
                                         </RadioButton>
                                         <TextBlock Text="Simula microcortes y pérdida de paquetes de red."
-                                                   FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="26,2,0,2"/>
+                                                   FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="26,1,0,2"/>
                                         <StackPanel Orientation="Horizontal" Margin="26,1,0,0">
                                             <TextBlock Text="Fluctuación:" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                             <ComboBox x:Name="StutterCycleCombo" Width="95" Height="24"
@@ -1719,8 +1715,7 @@
                                 </Grid>
                             </Border>
 
-                            <!-- Option 4: Pantalla de color -->
-                            <Border Grid.Row="4" BorderBrush="{StaticResource DividerLineBrush}" BorderThickness="0,0,0,1" Padding="18,6"
+                            <Border Grid.Row="4" BorderBrush="{StaticResource DividerLineBrush}" BorderThickness="0,0,0,1" Padding="18,4"
                                     Cursor="Hand" MouseLeftButtonDown="OnColorOptionClick">
                                 <Grid VerticalAlignment="Center">
                                     <Grid.ColumnDefinitions>
@@ -1736,8 +1731,8 @@
                                             </StackPanel>
                                         </RadioButton>
                                         <TextBlock Text="Emite un fondo sólido de color como pantalla de espera o fuera de línea."
-                                                   FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="26,3,0,4" TextWrapping="Wrap"/>
-                                        <StackPanel Orientation="Horizontal" Margin="26,2,0,0">
+                                                   FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="26,1,0,2" TextWrapping="Wrap"/>
+                                        <StackPanel Orientation="Horizontal" Margin="26,1,0,0">
                                             <TextBlock Text="Patrón:" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                             <ComboBox x:Name="ColorSelectComboBox" Width="140" Height="24"
                                                       SelectionChanged="OnColorSelectChanged">
@@ -1755,8 +1750,7 @@
                                 </Grid>
                             </Border>
 
-                            <!-- Option 5: Repetición en bucle -->
-                            <Border Grid.Row="5" BorderBrush="{StaticResource DividerLineBrush}" BorderThickness="0,0,0,1" Padding="18,6"
+                            <Border Grid.Row="5" BorderBrush="{StaticResource DividerLineBrush}" BorderThickness="0,0,0,1" Padding="18,4"
                                     Cursor="Hand" MouseLeftButtonDown="OnLoopOptionClick">
                                 <Grid VerticalAlignment="Center">
                                     <Grid.ColumnDefinitions>
@@ -1773,8 +1767,8 @@
                                             </StackPanel>
                                         </RadioButton>
                                         <TextBlock Text="Graba y repite continuamente los últimos segundos en memoria."
-                                                   FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="26,3,0,4" TextWrapping="Wrap"/>
-                                        <StackPanel Orientation="Horizontal" Margin="26,2,0,0">
+                                                   FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="26,1,0,2" TextWrapping="Wrap"/>
+                                        <StackPanel Orientation="Horizontal" Margin="26,1,0,0">
                                             <TextBlock Text="Duración búfer:" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                             <ComboBox x:Name="LoopDurationComboBox" Width="72" Height="24"
                                                       SelectionChanged="OnLoopDurationChanged">
@@ -1792,8 +1786,7 @@
                                 </Grid>
                             </Border>
 
-                            <!-- Option 6: Video cortado -->
-                            <Border Grid.Row="6" Padding="18,6" Cursor="Hand" MouseLeftButtonDown="OnGlitchOptionClick">
+                            <Border Grid.Row="6" Padding="18,4" Cursor="Hand" MouseLeftButtonDown="OnGlitchOptionClick">
                                 <Grid VerticalAlignment="Center">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -1808,8 +1801,8 @@
                                             </StackPanel>
                                         </RadioButton>
                                         <TextBlock Text="Simula fallo de sensor oscureciendo la mitad del fotograma."
-                                                   FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="26,3,0,4" TextWrapping="Wrap"/>
-                                        <StackPanel Orientation="Horizontal" Margin="26,2,0,0">
+                                                   FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="26,1,0,2" TextWrapping="Wrap"/>
+                                        <StackPanel Orientation="Horizontal" Margin="26,1,0,0">
                                             <TextBlock Text="Modo de corte:" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                             <ComboBox x:Name="GlitchModeCombo" Width="145" Height="24" SelectionChanged="OnGlitchModeChanged">
                                                 <ComboBoxItem Content="Mitad inferior oscura" IsSelected="True"/>

@@ -34,7 +34,6 @@ public partial class MainWindow : Window
     private float _currentMicPeak = 0f;
     private int _spectrumTick = 0;
 
-    // Vocal formant energy distribution across 16 bands (60Hz to 20kHz)
     private static readonly double[] VocalFrequencies = {
         0.18, 0.32, 0.52, 0.76, 0.92, 0.98, 0.94, 0.88,
         0.82, 0.74, 0.65, 0.54, 0.44, 0.34, 0.24, 0.15
@@ -122,15 +121,15 @@ public partial class MainWindow : Window
                 if (i < lit)
                 {
                     if (i >= total - 2)
-                        b.Background = new SolidColorBrush(MediaColor.FromRgb(0xff, 0x3b, 0x30)); // Red clip
+                        b.Background = new SolidColorBrush(MediaColor.FromRgb(0xff, 0x3b, 0x30));
                     else if (i >= total - 5)
-                        b.Background = new SolidColorBrush(MediaColor.FromRgb(0xff, 0x95, 0x00)); // Amber warning
+                        b.Background = new SolidColorBrush(MediaColor.FromRgb(0xff, 0x95, 0x00));
                     else
-                        b.Background = new SolidColorBrush(MediaColor.FromRgb(0x5b, 0x8d, 0xf7)); // Brand blue
+                        b.Background = new SolidColorBrush(MediaColor.FromRgb(0x5b, 0x8d, 0xf7));
                 }
                 else
                 {
-                    b.Background = new SolidColorBrush(MediaColor.FromRgb(0xe5, 0xe5, 0xea)); // Unlit
+                    b.Background = new SolidColorBrush(MediaColor.FromRgb(0xe5, 0xe5, 0xea));
                 }
             }
         }
@@ -355,7 +354,7 @@ public partial class MainWindow : Window
         if (SaturationLevelText == null) return;
         int val = (int)e.NewValue;
         string desc = val < 8 ? "Baja" : (val < 18 ? "Alta" : "Extrema");
-        SaturationLevelText.Text = $"x{val} ({desc})";
+        SaturationLevelText.Text = $"x{val} • {desc}";
         _audioService?.SetSaturationGain(val);
     }
 
@@ -499,8 +498,8 @@ public partial class MainWindow : Window
             else if (ModeMicSaturationRadio.IsChecked == true)
             {
                 float gain = (float)(MicSaturationSlider?.Value ?? 15.0);
-                double satMultiplier = 1.3 + (gain * 0.14);
-                double harmonics = (i >= 2 && i <= 13) ? Math.Sin(_spectrumTick * 0.75 + i * 1.25) * (gain * 0.25) * p : 0;
+                double satMultiplier = 1.08 + (gain * 0.035);
+                double harmonics = (i >= 2 && i <= 13) ? Math.Sin(_spectrumTick * 0.65 + i * 1.15) * (gain * 0.12) * p : 0;
                 targetOut = Math.Clamp((targetIn * satMultiplier) + harmonics, 3.0, maxH);
                 MicEffectBadge.Text = "SATURADO";
             }
