@@ -140,10 +140,7 @@ public partial class MainWindow : Window
 
                     if (_jigglerHotkey.IsMatch(ctrl, alt, shift, vk))
                     {
-                        Dispatcher.InvokeAsync(() => {
-                            AutoJitterCheck.IsChecked = !(AutoJitterCheck.IsChecked == true);
-                            OnAutoJitterCheckClicked(null!, null!);
-                        });
+                        Dispatcher.InvokeAsync(ToggleAutoJitter);
                         return (IntPtr)1;
                     }
 

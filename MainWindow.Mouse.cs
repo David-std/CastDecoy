@@ -67,14 +67,28 @@ public partial class MainWindow : Window
     private double _mousePlaySpeed = 1.0;
     private bool _isMouseLagActive = false;
     private int _mouseLagMs = 250;
-    private bool _showLagGhost = false;
-    private long _lastMouseLagUpdate = 0;
-    private double _laggedNormX = 0;
-    private double _laggedNormY = 0;
+    private bool _showLagGhost = true;
+    private Window? _lagCursorWindow;
+    private IntPtr _lagHwnd = IntPtr.Zero;
+    private DispatcherTimer? _mouseLagTimer;
+    private readonly Stopwatch _mouseLagStopwatch = new();
+    private readonly List<(int X, int Y, long TimeMs)> _mouseLagHistory = new();
+    private int _mouseLagDroppedFrames = 0;
+    private int _currentLagTargetX = 0;
+    private int _currentLagTargetY = 0;
+
     private bool _isOrganicDriftActive = false;
     private string _driftPattern = "Oscilación biológica";
+    private Window? _driftCursorWindow;
+    private IntPtr _driftHwnd = IntPtr.Zero;
+    private DispatcherTimer? _driftTimer;
+    private readonly Stopwatch _driftStopwatch = new();
+    private int _driftBaseX = 0;
+    private int _driftBaseY = 0;
+    private int _currentDriftX = 0;
+    private int _currentDriftY = 0;
 
-        private enum ShapeToolMode { None, Freehand, Line, Rect, Circle }
+    private enum ShapeToolMode { None, Freehand, Line, Rect, Circle }
     private ShapeToolMode _currentShapeTool = ShapeToolMode.None;
     private bool _isDrawingFreehand = false;
     private bool _isDraggingShapeBody = false;
@@ -85,8 +99,9 @@ public partial class MainWindow : Window
     private Rect _rectBounds = new(40, 25, 244, 115);
     private System.Windows.Point _circleCenter = new(162, 82);
     private double _circleRadius = 55;
+    private bool _isAutoJitterActive = false;
     private DispatcherTimer? _autoJitterTimer;
-    private int _autoJitterIntervalSeconds = 10;
+    private int _autoJitterIntervalSeconds = 30;
 
     
     private void ToggleCursorDecoy()
@@ -212,6 +227,8 @@ public partial class MainWindow : Window
         _decoyCursorWindow?.Hide();
         _followerCursorWindow?.Hide();
         _cloneCursorWindow?.Hide();
+        _lagCursorWindow?.Hide();
+        _driftCursorWindow?.Hide();
     }
 
     
@@ -257,6 +274,11 @@ public partial class MainWindow : Window
         {
             if (!_isMouseRecording) return;
             NativeMethods.GetCursorPos(out var pt);
+            if (_isOrganicDriftActive && _currentDriftX > 0 && _currentDriftY > 0)
+            {
+                pt.X = _currentDriftX;
+                pt.Y = _currentDriftY;
+            }
             long ms = _mouseRecordStopwatch.ElapsedMilliseconds;
 
             bool isClick = false;
@@ -541,13 +563,145 @@ public partial class MainWindow : Window
     }
 
     
-    private void OnSimulateMouseLagCheckClicked(object sender, RoutedEventArgs e)
+    private void OnToggleMouseLagClick(object sender, RoutedEventArgs e)
     {
-        _isMouseLagActive = SimulateMouseLagCheck?.IsChecked == true;
+        ToggleMouseLag();
+    }
+
+    public void ToggleMouseLag()
+    {
+        if (_isMouseLagActive)
+        {
+            StopMouseLag();
+        }
+        else
+        {
+            StartMouseLag();
+        }
+    }
+
+    private void StartMouseLag()
+    {
+        _isMouseLagActive = true;
+        if (_lagCursorWindow == null)
+        {
+            _lagCursorWindow = CreateCursorWindow(false);
+        }
+        if (_showLagGhost)
+        {
+            _lagCursorWindow.Show();
+            _lagHwnd = new WindowInteropHelper(_lagCursorWindow).EnsureHandle();
+        }
+        lock (_mouseLagHistory)
+        {
+            _mouseLagHistory.Clear();
+        }
+        _mouseLagStopwatch.Restart();
+        _mouseLagDroppedFrames = 0;
+
+        NativeMethods.GetCursorPos(out var curPt);
+        _currentLagTargetX = curPt.X;
+        _currentLagTargetY = curPt.Y;
+
+        _mouseLagTimer?.Stop();
+        _mouseLagTimer = new DispatcherTimer(DispatcherPriority.Render)
+        {
+            Interval = TimeSpan.FromMilliseconds(16)
+        };
+        _mouseLagTimer.Tick += (_, _) =>
+        {
+            if (!_isMouseLagActive) return;
+            NativeMethods.GetCursorPos(out var realPt);
+            long now = _mouseLagStopwatch.ElapsedMilliseconds;
+
+            lock (_mouseLagHistory)
+            {
+                _mouseLagHistory.Add((realPt.X, realPt.Y, now));
+                while (_mouseLagHistory.Count > 0 && (now - _mouseLagHistory[0].TimeMs) > 2000)
+                {
+                    _mouseLagHistory.RemoveAt(0);
+                }
+            }
+
+            long targetTime = now - _mouseLagMs;
+            int targetX = realPt.X;
+            int targetY = realPt.Y;
+
+            lock (_mouseLagHistory)
+            {
+                if (_mouseLagHistory.Count > 0)
+                {
+                    var match = _mouseLagHistory.LastOrDefault(p => p.TimeMs <= targetTime);
+                    if (match.TimeMs != 0)
+                    {
+                        targetX = match.X;
+                        targetY = match.Y;
+                    }
+                    else
+                    {
+                        targetX = _mouseLagHistory[0].X;
+                        targetY = _mouseLagHistory[0].Y;
+                    }
+                }
+            }
+
+            if (_mouseLagMs == 350)
+            {
+                _mouseLagDroppedFrames++;
+                if (_mouseLagDroppedFrames % 6 < 3)
+                {
+                    targetX = _currentLagTargetX;
+                    targetY = _currentLagTargetY;
+                }
+                else
+                {
+                    _currentLagTargetX = targetX;
+                    _currentLagTargetY = targetY;
+                }
+            }
+            else
+            {
+                _currentLagTargetX = targetX;
+                _currentLagTargetY = targetY;
+            }
+
+            if (_showLagGhost && _lagCursorWindow != null && _lagHwnd != IntPtr.Zero)
+            {
+                NativeMethods.SetWindowPos(_lagHwnd, NativeMethods.HWND_TOPMOST,
+                    _currentLagTargetX, _currentLagTargetY, 0, 0,
+                    NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_SHOWWINDOW);
+            }
+
+            UpdateMousepadVisual(realPt.X, realPt.Y, false);
+        };
+        _mouseLagTimer.Start();
+
+        MouseLagToggleBtn.Content = "Detener réplica";
+        MouseLagToggleBtn.Style = (Style)FindResource("PrimaryPillBtn");
+        MouseLagStatusText.Text = $"Réplica activa ({_mouseLagMs} ms lag)";
+        MouseLagStatusText.Foreground = AccentBlueBrush;
         UpdateMouseLagVisuals();
     }
 
-    
+    private void StopMouseLag()
+    {
+        _isMouseLagActive = false;
+        _mouseLagTimer?.Stop();
+        _mouseLagStopwatch.Stop();
+        _lagCursorWindow?.Hide();
+
+        MouseLagToggleBtn.Content = "Iniciar réplica";
+        MouseLagToggleBtn.Style = (Style)FindResource("SecondaryPillBtn");
+        MouseLagStatusText.Text = "Réplica inactiva: Sin retraso.";
+        MouseLagStatusText.Foreground = InactiveTextBrush;
+        UpdateMouseLagVisuals();
+    }
+
+    private void OnSimulateMouseLagCheckClicked(object sender, RoutedEventArgs e)
+    {
+        ToggleMouseLag();
+    }
+
     private void OnMouseLagChanged(object sender, SelectionChangedEventArgs e)
     {
         if (MouseLagCombo == null) return;
@@ -555,17 +709,28 @@ public partial class MainWindow : Window
         if (idx == 0) _mouseLagMs = 100;
         else if (idx == 1) _mouseLagMs = 250;
         else if (idx == 2) _mouseLagMs = 500;
-        else if (idx == 3) _mouseLagMs = 350; // Jitter / drop
+        else if (idx == 3) _mouseLagMs = 350;
+
+        if (_isMouseLagActive)
+        {
+            MouseLagStatusText.Text = $"Réplica activa ({_mouseLagMs} ms lag)";
+        }
     }
 
-    
     private void OnShowLagGhostCheckClicked(object sender, RoutedEventArgs e)
     {
         _showLagGhost = ShowLagGhostCheck?.IsChecked == true;
+        if (!_showLagGhost)
+        {
+            _lagCursorWindow?.Hide();
+        }
+        else if (_isMouseLagActive && _lagCursorWindow != null)
+        {
+            _lagCursorWindow.Show();
+        }
         UpdateMouseLagVisuals();
     }
 
-    
     private void UpdateMouseLagVisuals()
     {
         if (MousepadLagDot != null)
@@ -1204,17 +1369,10 @@ public partial class MainWindow : Window
             if (_isMouseLagActive && _showLagGhost && MousepadLagDot != null)
             {
                 MousepadLagDot.Visibility = Visibility.Visible;
-                long now = Environment.TickCount64;
-                if (now - _lastMouseLagUpdate >= _mouseLagMs)
-                {
-                    _lastMouseLagUpdate = now;
-                    double jitterX = ((now % 7) - 3) * 3.5;
-                    double jitterY = ((now % 5) - 2) * 3.5;
-                    _laggedNormX = Math.Clamp(normX + jitterX, 0, padW - 12);
-                    _laggedNormY = Math.Clamp(normY + jitterY, 0, padH - 12);
-                }
-                Canvas.SetLeft(MousepadLagDot, _laggedNormX);
-                Canvas.SetTop(MousepadLagDot, _laggedNormY);
+                double lagNormX = Math.Clamp(_currentLagTargetX / (double)screenW, 0, 1) * Math.Max(10, padW - 12);
+                double lagNormY = Math.Clamp(_currentLagTargetY / (double)screenH, 0, 1) * Math.Max(10, padH - 12);
+                Canvas.SetLeft(MousepadLagDot, lagNormX);
+                Canvas.SetTop(MousepadLagDot, lagNormY);
             }
             else if (MousepadLagDot != null)
             {
@@ -1239,42 +1397,58 @@ public partial class MainWindow : Window
     }
 
     
-    private void OnAutoJitterCheckClicked(object? sender, RoutedEventArgs? e)
+    private void OnToggleAutoJitterClick(object sender, RoutedEventArgs e)
     {
-        if (AutoJitterCheck.IsChecked == true)
-        {
-            StartAutoJitter();
-        }
-        else
+        ToggleAutoJitter();
+    }
+
+    public void ToggleAutoJitter()
+    {
+        if (_isAutoJitterActive)
         {
             StopAutoJitter();
         }
+        else
+        {
+            StartAutoJitter();
+        }
+    }
+
+    private void OnAutoJitterCheckClicked(object? sender, RoutedEventArgs? e)
+    {
+        ToggleAutoJitter();
     }
 
     
     private void OnAutoJitterIntervalChanged(object sender, SelectionChangedEventArgs e)
     {
         if (AutoJitterIntervalCombo == null) return;
-        if (AutoJitterIntervalCombo.SelectedIndex == 0) _autoJitterIntervalSeconds = 5;
-        else if (AutoJitterIntervalCombo.SelectedIndex == 1) _autoJitterIntervalSeconds = 10;
+        if (AutoJitterIntervalCombo.SelectedIndex == 0) _autoJitterIntervalSeconds = 10;
+        else if (AutoJitterIntervalCombo.SelectedIndex == 1) _autoJitterIntervalSeconds = 15;
         else if (AutoJitterIntervalCombo.SelectedIndex == 2) _autoJitterIntervalSeconds = 30;
-        else _autoJitterIntervalSeconds = 60;
+        else if (AutoJitterIntervalCombo.SelectedIndex == 3) _autoJitterIntervalSeconds = 60;
+        else _autoJitterIntervalSeconds = 300;
 
         if (_autoJitterTimer != null && _autoJitterTimer.IsEnabled)
         {
             _autoJitterTimer.Interval = TimeSpan.FromSeconds(_autoJitterIntervalSeconds);
+        }
+        if (_isAutoJitterActive)
+        {
+            AutoJitterStatusText.Text = $"Activo: Pulso cada {_autoJitterIntervalSeconds} s";
         }
     }
 
     
     private void StartAutoJitter()
     {
+        _isAutoJitterActive = true;
         if (_autoJitterTimer == null)
         {
             _autoJitterTimer = new DispatcherTimer();
             _autoJitterTimer.Tick += (_, _) =>
             {
-                if (AutoJitterCheck.IsChecked == true)
+                if (_isAutoJitterActive)
                 {
                     try
                     {
@@ -1282,8 +1456,14 @@ public partial class MainWindow : Window
                         Thread.Sleep(20);
                         NativeMethods.mouse_event(NativeMethods.MOUSEEVENTF_MOVE, unchecked((uint)-1), 0, 0, UIntPtr.Zero);
 
-                        MouseRecordStatusDot.Fill = AccentBlueBrush;
-                        MouseRecordStatusText.Text = $"[Anti-inactividad] Pulso emitido ({DateTime.Now:HH:mm:ss})";
+                        AutoJitterStatusText.Text = $"Activo: Pulso emitido ({DateTime.Now:HH:mm:ss})";
+                        AutoJitterStatusText.Foreground = AccentBlueBrush;
+
+                        if (MousepadClickRipple != null && MousepadMiniCanvas != null)
+                        {
+                            NativeMethods.GetCursorPos(out var pt);
+                            UpdateMousepadVisual(pt.X, pt.Y, true);
+                        }
                     }
                     catch { }
                 }
@@ -1291,27 +1471,175 @@ public partial class MainWindow : Window
         }
         _autoJitterTimer.Interval = TimeSpan.FromSeconds(_autoJitterIntervalSeconds);
         _autoJitterTimer.Start();
-        MouseRecordStatusText.Text = $"Anti-inactividad activado (cada {_autoJitterIntervalSeconds}s).";
+
+        AutoJitterToggleBtn.Content = "Detener";
+        AutoJitterToggleBtn.Style = (Style)FindResource("PrimaryPillBtn");
+        AutoJitterStatusText.Text = $"Activo: Pulso cada {_autoJitterIntervalSeconds} s";
+        AutoJitterStatusText.Foreground = AccentBlueBrush;
     }
 
-    
     private void StopAutoJitter()
     {
+        _isAutoJitterActive = false;
         _autoJitterTimer?.Stop();
-        MouseRecordStatusText.Text = "Anti-inactividad desactivado.";
+
+        AutoJitterToggleBtn.Content = "Activar";
+        AutoJitterToggleBtn.Style = (Style)FindResource("SecondaryPillBtn");
+        AutoJitterStatusText.Text = "Inactivo: Sin prevención de reposo.";
+        AutoJitterStatusText.Foreground = InactiveTextBrush;
     }
 
-    
+    private void OnToggleOrganicDriftClick(object sender, RoutedEventArgs e)
+    {
+        ToggleOrganicDrift();
+    }
+
+    public void ToggleOrganicDrift()
+    {
+        if (_isOrganicDriftActive)
+        {
+            StopOrganicDrift();
+        }
+        else
+        {
+            StartOrganicDrift();
+        }
+    }
+
     private void OnOrganicDriftCheckClicked(object sender, RoutedEventArgs e)
     {
-        _isOrganicDriftActive = OrganicDriftCheck.IsChecked == true;
+        ToggleOrganicDrift();
     }
 
-    
     private void OnDriftPatternChanged(object sender, SelectionChangedEventArgs e)
     {
         if (DriftPatternCombo?.SelectedItem is ComboBoxItem item)
             _driftPattern = item.Content?.ToString() ?? "Oscilación biológica";
+
+        if (_isOrganicDriftActive)
+        {
+            OrganicDriftStatusText.Text = $"Deriva activa ({_driftPattern})";
+        }
+    }
+
+    private void StartOrganicDrift()
+    {
+        _isOrganicDriftActive = true;
+        NativeMethods.GetCursorPos(out var pt);
+        _driftBaseX = pt.X;
+        _driftBaseY = pt.Y;
+        _currentDriftX = pt.X;
+        _currentDriftY = pt.Y;
+
+        if (_driftCursorWindow == null)
+        {
+            _driftCursorWindow = CreateCursorWindow(false);
+        }
+        _driftCursorWindow.Show();
+        _driftHwnd = new WindowInteropHelper(_driftCursorWindow).EnsureHandle();
+
+        _driftStopwatch.Restart();
+        _driftTimer?.Stop();
+        _driftTimer = new DispatcherTimer(DispatcherPriority.Render)
+        {
+            Interval = TimeSpan.FromMilliseconds(16)
+        };
+        _driftTimer.Tick += (_, _) =>
+        {
+            if (!_isOrganicDriftActive) return;
+
+            double sec = _driftStopwatch.Elapsed.TotalSeconds;
+            int screenW = NativeMethods.GetSystemMetrics(0);
+            int screenH = NativeMethods.GetSystemMetrics(1);
+            if (screenW <= 0) screenW = 1920;
+            if (screenH <= 0) screenH = 1080;
+
+            double dx = 0;
+            double dy = 0;
+
+            if (_driftPattern == "Oscilación biológica")
+            {
+                dx = Math.Sin(sec * 1.6) * 45 + Math.Sin(sec * 3.4) * 18 + Math.Cos(sec * 0.7) * 25;
+                dy = Math.Cos(sec * 1.2) * 35 + Math.Sin(sec * 2.7) * 14 + Math.Sin(sec * 0.5) * 20;
+            }
+            else if (_driftPattern == "Círculos sutiles")
+            {
+                dx = Math.Cos(sec * 0.9) * 60;
+                dy = Math.Sin(sec * 0.9) * 60;
+            }
+            else if (_driftPattern == "Lectura diagonal")
+            {
+                double progress = (sec % 5.0) / 5.0;
+                dx = (progress * 320) - 160;
+                dy = (progress * 90) - 45;
+            }
+            else
+            {
+                double tClamped = Math.Min(1.0, sec / 6.0);
+                double ease = (1 - Math.Cos(tClamped * Math.PI)) / 2;
+                double destX = screenW - 120;
+                double destY = screenH - 120;
+                dx = (_driftBaseX + (destX - _driftBaseX) * ease) - _driftBaseX;
+                dy = (_driftBaseY + (destY - _driftBaseY) * ease) - _driftBaseY;
+            }
+
+            int finalX = (int)Math.Clamp(_driftBaseX + dx, 10, screenW - 20);
+            int finalY = (int)Math.Clamp(_driftBaseY + dy, 10, screenH - 20);
+            _currentDriftX = finalX;
+            _currentDriftY = finalY;
+
+            if (_driftHwnd != IntPtr.Zero)
+            {
+                NativeMethods.SetWindowPos(_driftHwnd, NativeMethods.HWND_TOPMOST,
+                    finalX, finalY, 0, 0,
+                    NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_SHOWWINDOW);
+            }
+
+            UpdateMousepadDriftVisual(finalX, finalY);
+        };
+        _driftTimer.Start();
+
+        OrganicDriftToggleBtn.Content = "Detener deriva";
+        OrganicDriftToggleBtn.Style = (Style)FindResource("PrimaryPillBtn");
+        OrganicDriftStatusText.Text = $"Deriva activa ({_driftPattern})";
+        OrganicDriftStatusText.Foreground = AccentBlueBrush;
+    }
+
+    private void StopOrganicDrift()
+    {
+        _isOrganicDriftActive = false;
+        _driftTimer?.Stop();
+        _driftStopwatch.Stop();
+        _driftCursorWindow?.Hide();
+
+        if (MousepadDriftDot != null)
+        {
+            MousepadDriftDot.Visibility = Visibility.Collapsed;
+        }
+
+        OrganicDriftToggleBtn.Content = "Iniciar deriva";
+        OrganicDriftToggleBtn.Style = (Style)FindResource("SecondaryPillBtn");
+        OrganicDriftStatusText.Text = "Deriva inactiva.";
+        OrganicDriftStatusText.Foreground = InactiveTextBrush;
+    }
+
+    private void UpdateMousepadDriftVisual(double screenX, double screenY)
+    {
+        if (MousepadDriftDot == null || MousepadMiniCanvas == null) return;
+        int screenW = NativeMethods.GetSystemMetrics(0);
+        int screenH = NativeMethods.GetSystemMetrics(1);
+        if (screenW <= 0) screenW = 2560;
+        if (screenH <= 0) screenH = 1600;
+
+        double padW = MousepadMiniCanvas.ActualWidth > 10 ? MousepadMiniCanvas.ActualWidth : 350.0;
+        double padH = MousepadMiniCanvas.ActualHeight > 10 ? MousepadMiniCanvas.ActualHeight : 145.0;
+
+        double normX = Math.Clamp(screenX / (double)screenW, 0, 1) * Math.Max(10, padW - 12);
+        double normY = Math.Clamp(screenY / (double)screenH, 0, 1) * Math.Max(10, padH - 12);
+
+        MousepadDriftDot.Visibility = _isOrganicDriftActive ? Visibility.Visible : Visibility.Collapsed;
+        Canvas.SetLeft(MousepadDriftDot, normX);
+        Canvas.SetTop(MousepadDriftDot, normY);
     }
 
     public void InitMouseControls()
